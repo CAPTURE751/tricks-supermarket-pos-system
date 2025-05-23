@@ -4,6 +4,14 @@ import { User } from '@/hooks/useAuth';
 import { ProductGrid } from './ProductGrid';
 import { ShoppingCart } from './ShoppingCart';
 import { CheckoutPanel } from './CheckoutPanel';
+import { CustomerSearch } from './CustomerSearch';
+import { SaleHistory } from './SaleHistory';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Search, ShoppingBag, Clock, BarChart2 } from 'lucide-react';
 
 export interface Product {
   id: string;
@@ -13,10 +21,19 @@ export interface Product {
   stock: number;
   image?: string;
   barcode?: string;
+  sku?: string;
 }
 
 export interface CartItem extends Product {
   quantity: number;
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  loyaltyPoints?: number;
 }
 
 interface SalesModuleProps {
@@ -24,12 +41,12 @@ interface SalesModuleProps {
 }
 
 const sampleProducts: Product[] = [
-  { id: '1', name: 'Coca-Cola 500ml', price: 80, category: 'Drinks', stock: 50, barcode: '123456789' },
-  { id: '2', name: 'Bread Loaf', price: 60, category: 'Bakery', stock: 25 },
-  { id: '3', name: 'Milk 1L', price: 120, category: 'Dairy', stock: 30 },
-  { id: '4', name: 'Rice 2kg', price: 350, category: 'Grains', stock: 15 },
-  { id: '5', name: 'Cooking Oil 1L', price: 280, category: 'Cooking', stock: 20 },
-  { id: '6', name: 'Sugar 1kg', price: 150, category: 'Pantry', stock: 40 },
+  { id: '1', name: 'Coca-Cola 500ml', price: 80, category: 'Drinks', stock: 50, barcode: '123456789', sku: 'DRK001' },
+  { id: '2', name: 'Bread Loaf', price: 60, category: 'Bakery', stock: 25, sku: 'BKY001' },
+  { id: '3', name: 'Milk 1L', price: 120, category: 'Dairy', stock: 30, sku: 'DRY001' },
+  { id: '4', name: 'Rice 2kg', price: 350, category: 'Grains', stock: 15, sku: 'GRN001' },
+  { id: '5', name: 'Cooking Oil 1L', price: 280, category: 'Cooking', stock: 20, sku: 'COK001' },
+  { id: '6', name: 'Sugar 1kg', price: 150, category: 'Pantry', stock: 40, sku: 'PNT001' },
 ];
 
 export const SalesModule = ({ user }: SalesModuleProps) => {
@@ -37,6 +54,10 @@ export const SalesModule = ({ user }: SalesModuleProps) => {
   const [products] = useState<Product[]>(sampleProducts);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [activeTab, setActiveTab] = useState<string>('new-sale');
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [saleNote, setSaleNote] = useState<string>('');
+  const [parkedSales, setParkedSales] = useState<{id: string, items: CartItem[], customer: Customer | null, note: string}[]>([]);
 
   const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
 
@@ -69,67 +90,253 @@ export const SalesModule = ({ user }: SalesModuleProps) => {
     }
   };
 
-  const clearCart = () => setCart([]);
+  const clearCart = () => {
+    setCart([]);
+    setSelectedCustomer(null);
+    setSaleNote('');
+  };
+
+  const handleCustomerSelected = (customer: Customer) => {
+    setSelectedCustomer(customer);
+  };
+
+  const parkCurrentSale = () => {
+    if (cart.length > 0) {
+      const newParkedSale = {
+        id: `sale-${Date.now()}`,
+        items: [...cart],
+        customer: selectedCustomer,
+        note: saleNote
+      };
+      setParkedSales([...parkedSales, newParkedSale]);
+      clearCart();
+    }
+  };
+
+  const resumeParkedSale = (saleId: string) => {
+    const sale = parkedSales.find(s => s.id === saleId);
+    if (sale) {
+      setCart(sale.items);
+      setSelectedCustomer(sale.customer);
+      setSaleNote(sale.note);
+      setParkedSales(parkedSales.filter(s => s.id !== saleId));
+      setActiveTab('new-sale');
+    }
+  };
 
   const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.barcode?.includes(searchTerm);
+    const matchesSearch = 
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.barcode?.includes(searchTerm) ||
+      product.sku?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
   return (
-    <div className="flex space-x-6 h-full">
-      {/* Left Side - Products */}
-      <div className="flex-1 space-y-4">
-        <div className="bg-gray-800 p-4 rounded-lg">
-          <h2 className="text-white text-xl font-bold mb-4">Products</h2>
-          
-          {/* Search and Filters */}
-          <div className="flex space-x-4 mb-4">
-            <input
-              type="text"
-              placeholder="Search products or scan barcode..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="flex-1 bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-green-500 focus:outline-none"
-            />
-          </div>
-          
-          <div className="flex space-x-2 mb-4 overflow-x-auto">
-            {categories.map(category => (
-              <button
-                key={category}
-                onClick={() => setSelectedCategory(category)}
-                className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
-                  selectedCategory === category
-                    ? 'bg-green-500 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
-        </div>
+    <div className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="bg-gray-800 p-1 space-x-2">
+          <TabsTrigger value="new-sale" className="flex items-center gap-2">
+            <ShoppingBag size={16} />
+            <span>New Sale</span>
+          </TabsTrigger>
+          <TabsTrigger value="history" className="flex items-center gap-2">
+            <Clock size={16} />
+            <span>Sale History</span>
+          </TabsTrigger>
+          <TabsTrigger value="parked" className="flex items-center gap-2">
+            <Clock size={16} />
+            <span>Parked Sales ({parkedSales.length})</span>
+          </TabsTrigger>
+          <TabsTrigger value="reports" className="flex items-center gap-2">
+            <BarChart2 size={16} />
+            <span>Reports</span>
+          </TabsTrigger>
+        </TabsList>
 
-        <ProductGrid products={filteredProducts} onAddToCart={addToCart} />
-      </div>
+        <TabsContent value="new-sale">
+          <div className="flex space-x-6 h-full">
+            {/* Left Side - Products */}
+            <div className="flex-1 space-y-4">
+              <Card>
+                <CardContent className="p-4">
+                  <h2 className="text-xl font-bold mb-4">Products</h2>
+                  
+                  {/* Search and Filters */}
+                  <div className="flex space-x-4 mb-4">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+                      <Input
+                        type="text"
+                        placeholder="Search products by name, barcode or SKU..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-8"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex space-x-2 mb-4 overflow-x-auto">
+                    {categories.map(category => (
+                      <Button
+                        key={category}
+                        variant={selectedCategory === category ? "default" : "outline"}
+                        onClick={() => setSelectedCategory(category)}
+                        className="whitespace-nowrap"
+                        size="sm"
+                      >
+                        {category}
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
 
-      {/* Right Side - Cart and Checkout */}
-      <div className="w-96 space-y-4">
-        <ShoppingCart 
-          items={cart} 
-          onUpdateItem={updateCartItem}
-          onClear={clearCart}
-        />
-        
-        <CheckoutPanel 
-          items={cart}
-          user={user}
-          onCheckoutComplete={clearCart}
-        />
-      </div>
+              <ProductGrid products={filteredProducts} onAddToCart={addToCart} />
+            </div>
+
+            {/* Right Side - Cart and Checkout */}
+            <div className="w-96 space-y-4">
+              {/* Customer Selection */}
+              <Card className="p-4">
+                <h3 className="text-lg font-bold mb-2">
+                  {selectedCustomer ? 'Selected Customer' : 'Add Customer (Optional)'}
+                </h3>
+                
+                {selectedCustomer ? (
+                  <div className="bg-gray-700 p-3 rounded-lg">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-semibold">{selectedCustomer.name}</p>
+                        <p className="text-sm text-gray-400">{selectedCustomer.phone}</p>
+                        {selectedCustomer.loyaltyPoints !== undefined && (
+                          <p className="text-sm text-green-400">
+                            Loyalty Points: {selectedCustomer.loyaltyPoints}
+                          </p>
+                        )}
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => setSelectedCustomer(null)}
+                      >
+                        Change
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <CustomerSearch onSelectCustomer={handleCustomerSelected} />
+                )}
+              </Card>
+
+              {/* Sale Notes */}
+              <Card className="p-4">
+                <h3 className="text-lg font-bold mb-2">Sale Notes</h3>
+                <Textarea
+                  placeholder="Add notes for this sale (e.g., table number, special instructions)"
+                  value={saleNote}
+                  onChange={(e) => setSaleNote(e.target.value)}
+                  className="bg-gray-700 text-white border-gray-600"
+                  rows={2}
+                />
+              </Card>
+
+              {/* Park Sale Button */}
+              {cart.length > 0 && (
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={parkCurrentSale}
+                >
+                  Park Sale
+                </Button>
+              )}
+
+              <ShoppingCart 
+                items={cart} 
+                onUpdateItem={updateCartItem}
+                onClear={clearCart}
+              />
+              
+              <CheckoutPanel 
+                items={cart}
+                user={user}
+                customer={selectedCustomer}
+                saleNote={saleNote}
+                onCheckoutComplete={clearCart}
+              />
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="history">
+          <SaleHistory user={user} />
+        </TabsContent>
+
+        <TabsContent value="parked">
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <h2 className="text-xl font-bold mb-4">Parked Sales</h2>
+            
+            {parkedSales.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-400">No parked sales</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {parkedSales.map(sale => (
+                  <Card key={sale.id} className="bg-gray-700 hover:bg-gray-600 transition-colors">
+                    <CardContent className="p-4">
+                      <div className="mb-2">
+                        <p className="text-sm text-gray-400">
+                          {new Date(parseInt(sale.id.split('-')[1])).toLocaleString()}
+                        </p>
+                        <p className="font-semibold">
+                          {sale.customer ? sale.customer.name : 'No Customer'}
+                        </p>
+                        <p className="text-sm">
+                          {sale.items.length} items | 
+                          KSh {sale.items.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)}
+                        </p>
+                      </div>
+                      <Button 
+                        onClick={() => resumeParkedSale(sale.id)}
+                        className="w-full"
+                      >
+                        Resume Sale
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="reports">
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <h2 className="text-xl font-bold mb-4">Sales Reports</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card>
+                <CardContent className="p-4">
+                  <h3 className="font-semibold mb-2">Daily Sales Summary</h3>
+                  {/* Placeholder for sales reports */}
+                  <p className="text-gray-400">Report functionality will be implemented here</p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="p-4">
+                  <h3 className="font-semibold mb-2">Top Selling Products</h3>
+                  {/* Placeholder for sales reports */}
+                  <p className="text-gray-400">Report functionality will be implemented here</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
