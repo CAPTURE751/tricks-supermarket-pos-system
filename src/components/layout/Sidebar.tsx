@@ -18,6 +18,7 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { id: 'sales', label: 'Sales', icon: '💰', roles: ['Admin', 'Manager', 'Cashier', 'Guest'] },
   { id: 'inventory', label: 'Inventory', icon: '📦', roles: ['Admin', 'Manager', 'Stock Controller'] },
+  { id: 'cash', label: 'Cash', icon: '💵', roles: ['Admin', 'Manager', 'Cashier'] },
   { id: 'reports', label: 'Reports', icon: '📊', roles: ['Admin', 'Manager', 'Accountant'] },
   { id: 'customers', label: 'Customers', icon: '👥', roles: ['Admin', 'Manager', 'Cashier'] },
   { id: 'admin', label: 'Admin', icon: '⚙️', roles: ['Admin'] },
