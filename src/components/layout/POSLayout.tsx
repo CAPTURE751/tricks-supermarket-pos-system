@@ -42,7 +42,7 @@ export const POSLayout = ({ user }: POSLayoutProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       <Header user={user} />
       
       <div className="flex flex-1">
@@ -52,7 +52,7 @@ export const POSLayout = ({ user }: POSLayoutProps) => {
           onModuleChange={setActiveModule} 
         />
         
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-4 overflow-auto">
           {renderModule()}
         </main>
       </div>
