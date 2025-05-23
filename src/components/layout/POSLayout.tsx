@@ -5,6 +5,7 @@ import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 import { SalesModule } from '@/components/sales/SalesModule';
 import { InventoryModule } from '@/components/inventory/InventoryModule';
+import { PurchasesModule } from '@/components/purchases/PurchasesModule';
 import { ReportsModule } from '@/components/reports/ReportsModule';
 import { CustomersModule } from '@/components/customers/CustomersModule';
 import { AdminModule } from '@/components/admin/AdminModule';
@@ -14,7 +15,7 @@ interface POSLayoutProps {
   user: User;
 }
 
-export type ModuleType = 'sales' | 'inventory' | 'reports' | 'customers' | 'admin' | 'settings';
+export type ModuleType = 'sales' | 'inventory' | 'purchases' | 'reports' | 'customers' | 'admin' | 'settings';
 
 export const POSLayout = ({ user }: POSLayoutProps) => {
   const [activeModule, setActiveModule] = useState<ModuleType>('sales');
@@ -25,6 +26,8 @@ export const POSLayout = ({ user }: POSLayoutProps) => {
         return <SalesModule user={user} />;
       case 'inventory':
         return <InventoryModule user={user} />;
+      case 'purchases':
+        return <PurchasesModule user={user} />;
       case 'reports':
         return <ReportsModule user={user} />;
       case 'customers':
