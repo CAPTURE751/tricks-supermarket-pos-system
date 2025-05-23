@@ -65,7 +65,7 @@ export const cashService = {
       throw error;
     }
 
-    const sessions: CashSession[] = (data as CashSessionWithUser[]).map(
+    const sessions: CashSession[] = (data as unknown as CashSessionWithUser[]).map(
       cashService.mapDatabaseSessionToFrontend
     );
 
@@ -97,7 +97,7 @@ export const cashService = {
       throw error;
     }
 
-    return (data as CashSessionWithUser[]).map(cashService.mapDatabaseSessionToFrontend);
+    return (data as unknown as CashSessionWithUser[]).map(cashService.mapDatabaseSessionToFrontend);
   },
 
   // Fetch all transactions for a specific session
@@ -173,7 +173,7 @@ export const cashService = {
       throw error;
     }
 
-    return cashService.mapDatabaseSessionToFrontend(data as CashSessionWithUser);
+    return cashService.mapDatabaseSessionToFrontend(data as unknown as CashSessionWithUser);
   },
   
   // Close a cash session
@@ -199,7 +199,7 @@ export const cashService = {
       throw sessionError;
     }
 
-    const session = cashService.mapDatabaseSessionToFrontend(sessionData as CashSessionWithUser);
+    const session = cashService.mapDatabaseSessionToFrontend(sessionData as unknown as CashSessionWithUser);
     await cashService.fetchTransactionsForSession(session);
 
     // Calculate expected cash
@@ -232,7 +232,7 @@ export const cashService = {
       throw error;
     }
 
-    return cashService.mapDatabaseSessionToFrontend(data as CashSessionWithUser);
+    return cashService.mapDatabaseSessionToFrontend(data as unknown as CashSessionWithUser);
   },
 
   // Add a cash movement (in, out, transfer)

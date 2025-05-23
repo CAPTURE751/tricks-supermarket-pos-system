@@ -50,7 +50,8 @@ export const seedInitialData = async () => {
           email: 'jeff@jefftricks.com',
           pin: '1234',
           role: 'admin',
-          branch_id: branch.id
+          branch_id: branch.id,
+          active: true
         },
         {
           id: '00000000-0000-0000-0000-000000000012',
@@ -58,7 +59,8 @@ export const seedInitialData = async () => {
           email: 'jane@jefftricks.com',
           pin: '5678',
           role: 'manager',
-          branch_id: branch.id
+          branch_id: branch.id,
+          active: true
         },
         {
           id: '00000000-0000-0000-0000-000000000013',
@@ -66,7 +68,8 @@ export const seedInitialData = async () => {
           email: 'john@jefftricks.com',
           pin: '9012',
           role: 'cashier',
-          branch_id: branch.id
+          branch_id: branch.id,
+          active: true
         }
       ]);
       

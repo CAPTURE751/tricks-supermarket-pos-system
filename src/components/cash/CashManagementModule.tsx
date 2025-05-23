@@ -34,7 +34,7 @@ export const CashManagementModule = ({ user }: CashManagementModuleProps) => {
         <TabsContent value="sessions">
           <SessionsTab 
             user={user} 
-            openSessions={cashManagement.openSessions}
+            sessions={cashManagement.openSessions}
             closedSessions={cashManagement.closedSessions}
             isLoading={cashManagement.isLoading}
             onOpenSession={cashManagement.openSession}
@@ -45,7 +45,7 @@ export const CashManagementModule = ({ user }: CashManagementModuleProps) => {
         <TabsContent value="cash-movements">
           <CashMovementsTab 
             user={user} 
-            openSessions={cashManagement.openSessions}
+            sessions={cashManagement.openSessions}
             isLoading={cashManagement.isLoading}
             onAddCashMovement={cashManagement.addCashMovement}
           />
@@ -54,8 +54,7 @@ export const CashManagementModule = ({ user }: CashManagementModuleProps) => {
         <TabsContent value="treasury">
           <TreasuryDashboardTab 
             user={user} 
-            openSessions={cashManagement.openSessions}
-            isLoading={cashManagement.isLoading}
+            sessions={cashManagement.openSessions}
           />
         </TabsContent>
         
@@ -63,7 +62,6 @@ export const CashManagementModule = ({ user }: CashManagementModuleProps) => {
           <ReportsTab 
             user={user} 
             sessions={[...cashManagement.openSessions, ...cashManagement.closedSessions]}
-            isLoading={cashManagement.isLoading}
           />
         </TabsContent>
       </Tabs>

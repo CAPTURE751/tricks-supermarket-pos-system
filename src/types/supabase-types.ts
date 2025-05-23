@@ -28,6 +28,30 @@ export type DatabaseCashMovement = {
   created_at: string;
 }
 
+export type DatabaseUser = {
+  id: string;
+  auth_id: string | null;
+  name: string;
+  email: string | null;
+  pin: string | null;
+  role: 'cashier' | 'manager' | 'admin';
+  branch_id: string | null;
+  active: boolean;
+  require_password_reset: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type DatabaseBranch = {
+  id: string;
+  name: string;
+  location: string | null;
+  phone: string | null;
+  email: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type CashSessionWithUser = DatabaseSession & {
   users: {
     name: string;
