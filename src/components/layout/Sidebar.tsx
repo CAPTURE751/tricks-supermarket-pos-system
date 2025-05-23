@@ -54,12 +54,7 @@ export const Sidebar = ({ user, activeModule, onModuleChange }: SidebarProps) =>
         </nav>
       </div>
       
-      {/* Quick Help */}
-      <div className="absolute bottom-4 left-4 right-4">
-        <button className="w-full bg-yellow-500 hover:bg-yellow-600 text-black py-2 px-4 rounded-lg font-semibold transition-colors">
-          📖 Quick Help
-        </button>
-      </div>
+      {/* Quick Help button removed */}
     </aside>
   );
 };
