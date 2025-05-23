@@ -1,5 +1,4 @@
 
-import { useState, useEffect } from 'react';
 import { LoginScreen } from '@/components/auth/LoginScreen';
 import { POSLayout } from '@/components/layout/POSLayout';
 import { useAuth } from '@/hooks/useAuth';
