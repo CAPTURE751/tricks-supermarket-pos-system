@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ValueType } from 'recharts/types/component/DefaultTooltipContent';
 
 interface ReportsModuleProps {
   user: User;
@@ -72,8 +73,21 @@ export const ReportsModule = ({ user }: ReportsModuleProps) => {
     GBP: '£',
   };
 
-  const formatCurrency = (amount: number): string => {
-    const convertedAmount = amount * currencyRates[selectedCurrency];
+  const formatCurrency = (amount: number | string | undefined): string => {
+    // If amount is undefined or not a valid number, return a default string
+    if (amount === undefined) {
+      return `${currencySymbols[selectedCurrency]} 0.00`;
+    }
+    
+    // Convert string to number if necessary
+    const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    
+    // Check if conversion resulted in a valid number
+    if (isNaN(numericAmount)) {
+      return `${currencySymbols[selectedCurrency]} 0.00`;
+    }
+    
+    const convertedAmount = numericAmount * currencyRates[selectedCurrency];
     return `${currencySymbols[selectedCurrency]} ${convertedAmount.toLocaleString(undefined, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
@@ -368,7 +382,7 @@ export const ReportsModule = ({ user }: ReportsModuleProps) => {
                                       Revenue
                                     </span>
                                     <span className="font-bold text-green-500">
-                                      {formatCurrency(payload[0].value)}
+                                      {formatCurrency(payload[0]?.value)}
                                     </span>
                                   </div>
                                   <div className="flex flex-col">
@@ -376,7 +390,7 @@ export const ReportsModule = ({ user }: ReportsModuleProps) => {
                                       Expenses
                                     </span>
                                     <span className="font-bold text-red-500">
-                                      {formatCurrency(payload[1].value)}
+                                      {formatCurrency(payload[1]?.value)}
                                     </span>
                                   </div>
                                 </div>
