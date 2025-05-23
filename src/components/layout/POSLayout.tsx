@@ -6,6 +6,7 @@ import { Sidebar } from './Sidebar';
 import { SalesModule } from '@/components/sales/SalesModule';
 import { InventoryModule } from '@/components/inventory/InventoryModule';
 import { ReportsModule } from '@/components/reports/ReportsModule';
+import { CustomersModule } from '@/components/customers/CustomersModule';
 import { AdminModule } from '@/components/admin/AdminModule';
 
 interface POSLayoutProps {
@@ -25,6 +26,8 @@ export const POSLayout = ({ user }: POSLayoutProps) => {
         return <InventoryModule user={user} />;
       case 'reports':
         return <ReportsModule user={user} />;
+      case 'customers':
+        return <CustomersModule user={user} />;
       case 'admin':
         return <AdminModule user={user} />;
       default:
