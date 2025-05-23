@@ -10,12 +10,13 @@ import { ReportsModule } from '@/components/reports/ReportsModule';
 import { CustomersModule } from '@/components/customers/CustomersModule';
 import { AdminModule } from '@/components/admin/AdminModule';
 import { SettingsModule } from '@/components/settings/SettingsModule';
+import { CashManagementModule } from '@/components/cash/CashManagementModule';
 
 interface POSLayoutProps {
   user: User;
 }
 
-export type ModuleType = 'sales' | 'inventory' | 'purchases' | 'reports' | 'customers' | 'admin' | 'settings';
+export type ModuleType = 'sales' | 'inventory' | 'purchases' | 'reports' | 'customers' | 'cash' | 'admin' | 'settings';
 
 export const POSLayout = ({ user }: POSLayoutProps) => {
   const [activeModule, setActiveModule] = useState<ModuleType>('sales');
@@ -32,6 +33,8 @@ export const POSLayout = ({ user }: POSLayoutProps) => {
         return <ReportsModule user={user} />;
       case 'customers':
         return <CustomersModule user={user} />;
+      case 'cash':
+        return <CashManagementModule user={user} />;
       case 'admin':
         return <AdminModule user={user} />;
       case 'settings':
@@ -59,3 +62,4 @@ export const POSLayout = ({ user }: POSLayoutProps) => {
     </div>
   );
 };
+
