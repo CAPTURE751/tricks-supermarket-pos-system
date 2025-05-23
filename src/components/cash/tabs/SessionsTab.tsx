@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { User } from '@/hooks/useAuth';
-import { CashSession } from '../types/cash-types';
+import { CashSession, SessionStatus } from '../types/cash-types';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -88,7 +88,7 @@ export const SessionsTab = ({ user, sessions, setSessions }: SessionsTabProps) =
       session.id === selectedSession.id 
         ? {
             ...session,
-            status: 'closed',
+            status: 'closed' as SessionStatus,
             closingTime: new Date().toISOString(),
             expectedClosingAmount,
             actualClosingAmount,

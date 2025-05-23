@@ -4,7 +4,7 @@ import { User } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AdminMetric } from "./types/admin-types";
-import { trendingUp, trendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 
 interface DashboardProps {
@@ -47,12 +47,12 @@ export const Dashboard = ({ user }: DashboardProps) => {
                 {metric.label}
                 {metric.trend === "up" && (
                   <span className="text-green-500">
-                    <trendingUp className="h-4 w-4" />
+                    <TrendingUp className="h-4 w-4" />
                   </span>
                 )}
                 {metric.trend === "down" && (
                   <span className="text-red-500">
-                    <trendingDown className="h-4 w-4" />
+                    <TrendingDown className="h-4 w-4" />
                   </span>
                 )}
               </CardTitle>
