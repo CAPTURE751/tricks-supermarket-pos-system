@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { User } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChartContainer, LineChart, BarChart } from '@/components/ui/chart';
+import { ChartContainer } from '@/components/ui/chart';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { mockCustomers } from '../data/mockData';
 
@@ -15,29 +16,21 @@ export const CustomerReports = ({ user }: CustomerReportsProps) => {
   const [dateRange, setDateRange] = useState('month');
   
   // Mock data for charts
-  const customerGrowthData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
-    datasets: [
-      {
-        label: 'New Customers',
-        data: [3, 5, 2, 8, 4],
-        borderColor: 'rgb(34, 197, 94)',
-        backgroundColor: 'rgba(34, 197, 94, 0.5)',
-        tension: 0.3,
-      }
-    ]
-  };
+  const customerGrowthData = [
+    { name: 'Jan', newCustomers: 3 },
+    { name: 'Feb', newCustomers: 5 },
+    { name: 'Mar', newCustomers: 2 },
+    { name: 'Apr', newCustomers: 8 },
+    { name: 'May', newCustomers: 4 },
+  ];
   
-  const customerSpendingData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
-    datasets: [
-      {
-        label: 'Average Spending (KSh)',
-        data: [1500, 1800, 1600, 2200, 2500],
-        backgroundColor: 'rgba(34, 197, 94, 0.7)',
-      }
-    ]
-  };
+  const customerSpendingData = [
+    { name: 'Jan', averageSpending: 1500 },
+    { name: 'Feb', averageSpending: 1800 },
+    { name: 'Mar', averageSpending: 1600 },
+    { name: 'Apr', averageSpending: 2200 },
+    { name: 'May', averageSpending: 2500 },
+  ];
   
   // Sort customers by total spent (descending)
   const topCustomers = [...mockCustomers].sort((a, b) => b.totalSpent - a.totalSpent).slice(0, 5);
@@ -83,23 +76,23 @@ export const CustomerReports = ({ user }: CustomerReportsProps) => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer 
-              config={{}} 
-              className="aspect-[4/3]"
-            >
-              <LineChart 
-                data={customerGrowthData}
-                className="text-white"
-                options={{
-                  scales: {
-                    y: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: 'white' } },
-                    x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: 'white' } }
-                  },
-                  plugins: {
-                    legend: { labels: { color: 'white' } }
-                  }
-                }}
-              />
+            <ChartContainer config={{}} className="aspect-[4/3]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={customerGrowthData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                  <XAxis dataKey="name" stroke="white" />
+                  <YAxis stroke="white" />
+                  <Tooltip />
+                  <Line 
+                    type="monotone" 
+                    dataKey="newCustomers" 
+                    name="New Customers"
+                    stroke="rgb(34, 197, 94)" 
+                    activeDot={{ r: 8 }} 
+                    strokeWidth={2}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </ChartContainer>
           </CardContent>
         </Card>
@@ -112,23 +105,20 @@ export const CustomerReports = ({ user }: CustomerReportsProps) => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer 
-              config={{}} 
-              className="aspect-[4/3]"
-            >
-              <BarChart 
-                data={customerSpendingData}
-                className="text-white"
-                options={{
-                  scales: {
-                    y: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: 'white' } },
-                    x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: 'white' } }
-                  },
-                  plugins: {
-                    legend: { labels: { color: 'white' } }
-                  }
-                }}
-              />
+            <ChartContainer config={{}} className="aspect-[4/3]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={customerSpendingData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                  <XAxis dataKey="name" stroke="white" />
+                  <YAxis stroke="white" />
+                  <Tooltip />
+                  <Bar 
+                    dataKey="averageSpending" 
+                    name="Average Spending (KSh)" 
+                    fill="rgba(34, 197, 94, 0.7)" 
+                  />
+                </BarChart>
+              </ResponsiveContainer>
             </ChartContainer>
           </CardContent>
         </Card>
