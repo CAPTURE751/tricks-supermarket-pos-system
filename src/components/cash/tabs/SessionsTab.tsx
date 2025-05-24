@@ -15,10 +15,20 @@ import { CloseSessionDialog } from '../components/CloseSessionDialog';
 interface SessionsTabProps {
   user: User;
   sessions: CashSession[];
-  setSessions: React.Dispatch<React.SetStateAction<CashSession[]>>;
+  closedSessions: CashSession[];
+  isLoading: boolean;
+  onOpenSession: (registerName: string, openingFloat: number, notes?: string) => Promise<CashSession>;
+  onCloseSession: (sessionId: string, actualCash: number, notes?: string) => Promise<CashSession>;
 }
 
-export const SessionsTab = ({ user, sessions, setSessions }: SessionsTabProps) => {
+export const SessionsTab = ({ 
+  user, 
+  sessions, 
+  closedSessions, 
+  isLoading, 
+  onOpenSession, 
+  onCloseSession 
+}: SessionsTabProps) => {
   const [openSessionDialog, setOpenSessionDialog] = useState(false);
   const [closeSessionDialog, setCloseSessionDialog] = useState(false);
   const [selectedSession, setSelectedSession] = useState<CashSession | null>(null);
@@ -27,38 +37,24 @@ export const SessionsTab = ({ user, sessions, setSessions }: SessionsTabProps) =
   const [sessionNotes, setSessionNotes] = useState<string>('');
   
   const activeSessions = sessions.filter(session => session.status === 'open');
-  const closedSessions = sessions.filter(session => session.status === 'closed');
 
-  const handleOpenSession = () => {
+  const handleOpenSession = async () => {
     if (!floatAmount || isNaN(Number(floatAmount))) {
       toast.error("Please enter a valid float amount");
       return;
     }
 
-    const newSession: CashSession = {
-      id: `session-${Date.now()}`,
-      registerName: `Register ${activeSessions.length + 1}`,
-      registerID: `reg-00${activeSessions.length + 1}`,
-      cashierID: user.id,
-      cashierName: user.name,
-      openingTime: new Date().toISOString(),
-      openingFloat: Number(floatAmount),
-      status: 'open',
-      transactions: [],
-      salesTotal: 0,
-      cashInTotal: 0,
-      cashOutTotal: 0,
-      notes: sessionNotes
-    };
-
-    setSessions([...sessions, newSession]);
-    setOpenSessionDialog(false);
-    setFloatAmount('');
-    setSessionNotes('');
-    toast.success("Cash session opened successfully");
+    try {
+      await onOpenSession(`Register ${activeSessions.length + 1}`, Number(floatAmount), sessionNotes);
+      setOpenSessionDialog(false);
+      setFloatAmount('');
+      setSessionNotes('');
+    } catch (error) {
+      console.error('Error opening session:', error);
+    }
   };
 
-  const handleCloseSession = () => {
+  const handleCloseSession = async () => {
     if (!selectedSession) return;
     
     if (!closingAmount || isNaN(Number(closingAmount))) {
@@ -66,50 +62,14 @@ export const SessionsTab = ({ user, sessions, setSessions }: SessionsTabProps) =
       return;
     }
 
-    const actualClosingAmount = Number(closingAmount);
-    const expectedClosingAmount = selectedSession.openingFloat + 
-      selectedSession.salesTotal + selectedSession.cashInTotal - 
-      selectedSession.cashOutTotal;
-    
-    const discrepancyAmount = actualClosingAmount - expectedClosingAmount;
-    
-    let discrepancyStatus: 'none' | 'minor' | 'significant' | 'critical' = 'none';
-    if (discrepancyAmount !== 0) {
-      const discrepancyPercentage = Math.abs(discrepancyAmount) / expectedClosingAmount * 100;
-      if (discrepancyPercentage < 1) {
-        discrepancyStatus = 'minor';
-      } else if (discrepancyPercentage < 5) {
-        discrepancyStatus = 'significant';
-      } else {
-        discrepancyStatus = 'critical';
-      }
-    }
-    
-    const updatedSessions = sessions.map(session => 
-      session.id === selectedSession.id 
-        ? {
-            ...session,
-            status: 'closed' as SessionStatus,
-            closingTime: new Date().toISOString(),
-            expectedClosingAmount,
-            actualClosingAmount,
-            discrepancyAmount,
-            discrepancyStatus,
-            discrepancyNotes: sessionNotes
-          }
-        : session
-    );
-    
-    setSessions(updatedSessions);
-    setCloseSessionDialog(false);
-    setSelectedSession(null);
-    setClosingAmount('');
-    setSessionNotes('');
-    
-    if (discrepancyStatus === 'none') {
-      toast.success("Session closed successfully with no discrepancies");
-    } else {
-      toast.warning(`Session closed with ${discrepancyStatus} discrepancy of ${discrepancyAmount.toFixed(2)}`);
+    try {
+      await onCloseSession(selectedSession.id, Number(closingAmount), sessionNotes);
+      setCloseSessionDialog(false);
+      setSelectedSession(null);
+      setClosingAmount('');
+      setSessionNotes('');
+    } catch (error) {
+      console.error('Error closing session:', error);
     }
   };
 
@@ -125,6 +85,7 @@ export const SessionsTab = ({ user, sessions, setSessions }: SessionsTabProps) =
         <Button 
           onClick={() => setOpenSessionDialog(true)}
           className="bg-green-500 hover:bg-green-600"
+          disabled={isLoading}
         >
           <Plus size={16} className="mr-2" /> Open New Session
         </Button>
@@ -134,7 +95,9 @@ export const SessionsTab = ({ user, sessions, setSessions }: SessionsTabProps) =
         <CardContent className="p-6">
           <h3 className="text-xl font-semibold text-white mb-4">Active Sessions</h3>
           
-          {activeSessions.length === 0 ? (
+          {isLoading ? (
+            <p className="text-gray-400 text-center py-8">Loading sessions...</p>
+          ) : activeSessions.length === 0 ? (
             <p className="text-gray-400 text-center py-8">No active sessions</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -157,7 +120,6 @@ export const SessionsTab = ({ user, sessions, setSessions }: SessionsTabProps) =
         </CardContent>
       </Card>
       
-      {/* Open Session Dialog */}
       <Dialog open={openSessionDialog} onOpenChange={setOpenSessionDialog}>
         <OpenSessionDialog 
           floatAmount={floatAmount}
@@ -169,7 +131,6 @@ export const SessionsTab = ({ user, sessions, setSessions }: SessionsTabProps) =
         />
       </Dialog>
       
-      {/* Close Session Dialog */}
       <Dialog open={closeSessionDialog} onOpenChange={setCloseSessionDialog}>
         <CloseSessionDialog 
           session={selectedSession}

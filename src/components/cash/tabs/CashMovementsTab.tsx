@@ -15,10 +15,11 @@ import { Plus, ArrowUpRight, ArrowDownLeft, ArrowLeftRight, Clock } from 'lucide
 interface CashMovementsTabProps {
   user: User;
   sessions: CashSession[];
-  setSessions: React.Dispatch<React.SetStateAction<CashSession[]>>;
+  isLoading: boolean;
+  onAddCashMovement: (sessionId: string, type: 'in' | 'out' | 'transfer', amount: number, reason: string, recipientSessionId?: string) => Promise<CashTransaction>;
 }
 
-export const CashMovementsTab = ({ user, sessions, setSessions }: CashMovementsTabProps) => {
+export const CashMovementsTab = ({ user, sessions, isLoading, onAddCashMovement }: CashMovementsTabProps) => {
   const [transactions, setTransactions] = useState<CashTransaction[]>(mockTransactions);
   const [openMovementDialog, setOpenMovementDialog] = useState(false);
   const [movementType, setMovementType] = useState<CashMovementType>('in');
@@ -29,39 +30,25 @@ export const CashMovementsTab = ({ user, sessions, setSessions }: CashMovementsT
 
   const activeSessions = sessions.filter(session => session.status === 'open');
 
-  const handleAddMovement = () => {
+  const handleAddMovement = async () => {
     if (!selectedSessionId || !amount || isNaN(Number(amount)) || !reason) {
       toast.error("Please fill in all required fields");
       return;
     }
     
-    const newTransaction: CashTransaction = {
-      id: `trans-${Date.now()}`,
-      sessionId: selectedSessionId,
-      timestamp: new Date().toISOString(),
-      amount: Number(amount),
-      type: movementType,
-      reason,
-      notes,
-      createdBy: user.id
-    };
-    
-    setTransactions([...transactions, newTransaction]);
-    
-    // Update the session with new cash in/out totals
-    setSessions(sessions.map(session => {
-      if (session.id === selectedSessionId) {
-        return {
-          ...session,
-          cashInTotal: movementType === 'in' ? session.cashInTotal + Number(amount) : session.cashInTotal,
-          cashOutTotal: movementType === 'out' ? session.cashOutTotal + Number(amount) : session.cashOutTotal
-        };
-      }
-      return session;
-    }));
-    
-    resetForm();
-    toast.success(`Cash ${movementType} recorded successfully`);
+    try {
+      const newTransaction = await onAddCashMovement(
+        selectedSessionId,
+        movementType as 'in' | 'out' | 'transfer',
+        Number(amount),
+        reason
+      );
+      
+      setTransactions([...transactions, newTransaction]);
+      resetForm();
+    } catch (error) {
+      console.error('Error adding cash movement:', error);
+    }
   };
   
   const resetForm = () => {
@@ -70,6 +57,7 @@ export const CashMovementsTab = ({ user, sessions, setSessions }: CashMovementsT
     setAmount('');
     setReason('');
     setNotes('');
+    setSelectedSessionId('');
   };
   
   return (
@@ -83,6 +71,7 @@ export const CashMovementsTab = ({ user, sessions, setSessions }: CashMovementsT
               setOpenMovementDialog(true);
             }}
             className="bg-green-500 hover:bg-green-600"
+            disabled={isLoading}
           >
             <ArrowDownLeft size={16} className="mr-2" /> Cash In
           </Button>
@@ -92,6 +81,7 @@ export const CashMovementsTab = ({ user, sessions, setSessions }: CashMovementsT
               setOpenMovementDialog(true);
             }}
             className="bg-amber-500 hover:bg-amber-600"
+            disabled={isLoading}
           >
             <ArrowUpRight size={16} className="mr-2" /> Cash Out
           </Button>
@@ -101,6 +91,7 @@ export const CashMovementsTab = ({ user, sessions, setSessions }: CashMovementsT
               setOpenMovementDialog(true);
             }}
             className="bg-blue-500 hover:bg-blue-600"
+            disabled={isLoading}
           >
             <ArrowLeftRight size={16} className="mr-2" /> Transfer
           </Button>
@@ -111,62 +102,65 @@ export const CashMovementsTab = ({ user, sessions, setSessions }: CashMovementsT
         <CardContent className="p-6">
           <h3 className="text-xl font-semibold text-white mb-4">Recent Cash Movements</h3>
           
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left text-white">
-              <thead className="text-xs uppercase bg-gray-700">
-                <tr>
-                  <th className="px-4 py-3">Date/Time</th>
-                  <th className="px-4 py-3">Session</th>
-                  <th className="px-4 py-3">Type</th>
-                  <th className="px-4 py-3">Amount</th>
-                  <th className="px-4 py-3">Reason</th>
-                  <th className="px-4 py-3">Created By</th>
-                  <th className="px-4 py-3">Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transactions.map(transaction => {
-                  const session = sessions.find(s => s.id === transaction.sessionId);
-                  return (
-                    <tr key={transaction.id} className="border-b border-gray-700 bg-gray-800 hover:bg-gray-700">
-                      <td className="px-4 py-3 flex items-center">
-                        <Clock size={12} className="mr-2 text-gray-400" />
-                        {new Date(transaction.timestamp).toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3">{session?.registerName}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded-full text-xs ${
-                          transaction.type === 'in' ? 'bg-green-500/20 text-green-400' :
-                          transaction.type === 'out' ? 'bg-red-500/20 text-red-400' :
-                          'bg-blue-500/20 text-blue-400'
+          {isLoading ? (
+            <p className="text-gray-400 text-center py-8">Loading movements...</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left text-white">
+                <thead className="text-xs uppercase bg-gray-700">
+                  <tr>
+                    <th className="px-4 py-3">Date/Time</th>
+                    <th className="px-4 py-3">Session</th>
+                    <th className="px-4 py-3">Type</th>
+                    <th className="px-4 py-3">Amount</th>
+                    <th className="px-4 py-3">Reason</th>
+                    <th className="px-4 py-3">Created By</th>
+                    <th className="px-4 py-3">Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transactions.map(transaction => {
+                    const session = sessions.find(s => s.id === transaction.sessionId);
+                    return (
+                      <tr key={transaction.id} className="border-b border-gray-700 bg-gray-800 hover:bg-gray-700">
+                        <td className="px-4 py-3 flex items-center">
+                          <Clock size={12} className="mr-2 text-gray-400" />
+                          {new Date(transaction.timestamp).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3">{session?.registerName}</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            transaction.type === 'in' ? 'bg-green-500/20 text-green-400' :
+                            transaction.type === 'out' ? 'bg-red-500/20 text-red-400' :
+                            'bg-blue-500/20 text-blue-400'
+                          }`}>
+                            {transaction.type === 'in' ? 'Cash In' : 
+                             transaction.type === 'out' ? 'Cash Out' : 
+                             'Transfer'}
+                          </span>
+                        </td>
+                        <td className={`px-4 py-3 ${
+                          transaction.type === 'in' ? 'text-green-400' :
+                          transaction.type === 'out' ? 'text-red-400' :
+                          'text-blue-400'
                         }`}>
-                          {transaction.type === 'in' ? 'Cash In' : 
-                           transaction.type === 'out' ? 'Cash Out' : 
-                           'Transfer'}
-                        </span>
-                      </td>
-                      <td className={`px-4 py-3 ${
-                        transaction.type === 'in' ? 'text-green-400' :
-                        transaction.type === 'out' ? 'text-red-400' :
-                        'text-blue-400'
-                      }`}>
-                        {transaction.amount.toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3">{transaction.reason}</td>
-                      <td className="px-4 py-3">
-                        {sessions.find(s => s.id === transaction.sessionId)?.cashierName}
-                      </td>
-                      <td className="px-4 py-3 text-gray-400">{transaction.notes}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                          {transaction.amount.toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3">{transaction.reason}</td>
+                        <td className="px-4 py-3">
+                          {sessions.find(s => s.id === transaction.sessionId)?.cashierName}
+                        </td>
+                        <td className="px-4 py-3 text-gray-400">{transaction.notes}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
       
-      {/* Add Cash Movement Dialog */}
       <Dialog open={openMovementDialog} onOpenChange={setOpenMovementDialog}>
         <DialogContent className="bg-gray-800 text-white border-gray-700">
           <DialogHeader>
@@ -274,6 +268,7 @@ export const CashMovementsTab = ({ user, sessions, setSessions }: CashMovementsT
                  'bg-blue-500 hover:bg-blue-600'}
               `} 
               onClick={handleAddMovement}
+              disabled={isLoading}
             >
               {movementType === 'in' ? 'Add Cash In' : 
                movementType === 'out' ? 'Add Cash Out' : 
