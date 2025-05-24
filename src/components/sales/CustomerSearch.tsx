@@ -1,107 +1,216 @@
 
-import { useState } from 'react';
-import { Search } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Search, Plus, User, Phone, Mail } from 'lucide-react';
 import { Customer } from './SalesModule';
+import { useSales } from '@/hooks/useSales';
+import { DatabaseCustomer } from '@/services/sales-service';
 
 interface CustomerSearchProps {
   onSelectCustomer: (customer: Customer) => void;
 }
 
-// Sample customers data - in a real app, this would come from an API
-const sampleCustomers: Customer[] = [
-  { id: '1', name: 'John Doe', phone: '+254712345678', email: 'john@example.com', loyaltyPoints: 120 },
-  { id: '2', name: 'Jane Smith', phone: '+254723456789', email: 'jane@example.com', loyaltyPoints: 85 },
-  { id: '3', name: 'David Kamau', phone: '+254734567890', loyaltyPoints: 45 },
-  { id: '4', name: 'Mary Wanjiku', phone: '+254745678901', email: 'mary@example.com' },
-  { id: '5', name: 'Peter Omondi', phone: '+254756789012', loyaltyPoints: 210 },
-];
+// Transform database customer to UI customer format
+const transformCustomer = (dbCustomer: DatabaseCustomer): Customer => ({
+  id: dbCustomer.id,
+  name: dbCustomer.name,
+  phone: dbCustomer.phone || '',
+  email: dbCustomer.email || undefined,
+  loyaltyPoints: dbCustomer.loyalty_points
+});
 
 export const CustomerSearch = ({ onSelectCustomer }: CustomerSearchProps) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState<Customer[]>([]);
-  const [showResults, setShowResults] = useState(false);
+  const [searchResults, setSearchResults] = useState<DatabaseCustomer[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    address: ''
+  });
 
-  const handleSearch = (term: string) => {
-    setSearchTerm(term);
-    
-    if (term.length > 2) {
-      const filtered = sampleCustomers.filter(customer => 
-        customer.name.toLowerCase().includes(term.toLowerCase()) ||
-        customer.phone.includes(term) ||
-        (customer.email && customer.email.toLowerCase().includes(term.toLowerCase()))
-      );
-      setSearchResults(filtered);
-      setShowResults(true);
-    } else {
-      setSearchResults([]);
-      setShowResults(false);
+  const { searchCustomers, addCustomer } = useSales();
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (searchTerm.trim().length >= 2) {
+        setIsSearching(true);
+        try {
+          const results = await searchCustomers(searchTerm.trim());
+          setSearchResults(results);
+        } catch (error) {
+          console.error('Search failed:', error);
+        } finally {
+          setIsSearching(false);
+        }
+      } else {
+        setSearchResults([]);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm, searchCustomers]);
+
+  const handleSelectCustomer = (customer: DatabaseCustomer) => {
+    onSelectCustomer(transformCustomer(customer));
+    setSearchTerm('');
+    setSearchResults([]);
+  };
+
+  const handleAddCustomer = async () => {
+    if (!newCustomer.name.trim() || !newCustomer.phone.trim()) {
+      return;
+    }
+
+    try {
+      const createdCustomer = await addCustomer({
+        name: newCustomer.name.trim(),
+        phone: newCustomer.phone.trim(),
+        email: newCustomer.email.trim() || null,
+        address: newCustomer.address.trim() || null,
+        is_active: true
+      });
+
+      onSelectCustomer(transformCustomer(createdCustomer));
+      setShowAddDialog(false);
+      setNewCustomer({ name: '', phone: '', email: '', address: '' });
+      setSearchTerm('');
+    } catch (error) {
+      console.error('Failed to add customer:', error);
     }
   };
 
-  const handleSelectCustomer = (customer: Customer) => {
-    onSelectCustomer(customer);
-    setShowResults(false);
-    setSearchTerm('');
-  };
-
   return (
-    <div className="relative">
+    <div className="space-y-2">
       <div className="relative">
         <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
         <Input
           type="text"
-          placeholder="Search customers by name, phone, or email..."
+          placeholder="Search customers by name or phone..."
           value={searchTerm}
-          onChange={(e) => handleSearch(e.target.value)}
+          onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-8"
-          onFocus={() => {
-            if (searchTerm.length > 2) setShowResults(true);
-          }}
         />
       </div>
-      
-      {showResults && (
-        <div className="absolute z-10 w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-lg">
-          {searchResults.length > 0 ? (
-            <div className="max-h-60 overflow-y-auto">
+
+      {/* Search Results */}
+      {searchResults.length > 0 && (
+        <Card className="border border-gray-600">
+          <CardContent className="p-2">
+            <div className="max-h-40 overflow-y-auto space-y-1">
               {searchResults.map(customer => (
-                <div 
+                <div
                   key={customer.id}
-                  className="p-3 hover:bg-gray-700 cursor-pointer border-b border-gray-700 last:border-b-0"
                   onClick={() => handleSelectCustomer(customer)}
+                  className="p-2 hover:bg-gray-700 rounded cursor-pointer flex items-center justify-between"
                 >
-                  <div className="font-semibold">{customer.name}</div>
-                  <div className="text-sm text-gray-400">{customer.phone}</div>
-                  {customer.email && (
-                    <div className="text-xs text-gray-400">{customer.email}</div>
-                  )}
-                  {customer.loyaltyPoints !== undefined && (
-                    <div className="text-xs text-green-400">
-                      Loyalty: {customer.loyaltyPoints} points
-                    </div>
-                  )}
+                  <div>
+                    <div className="font-medium">{customer.name}</div>
+                    <div className="text-sm text-gray-400">{customer.phone}</div>
+                    {customer.loyalty_points > 0 && (
+                      <div className="text-xs text-green-400">
+                        {customer.loyalty_points} loyalty points
+                      </div>
+                    )}
+                  </div>
+                  <User className="h-4 w-4 text-gray-400" />
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="p-3 text-center text-gray-400">
-              No customers found
-              <div className="mt-2">
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={() => setShowResults(false)}
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
-          )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Loading State */}
+      {isSearching && (
+        <div className="text-center py-2 text-gray-400">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mx-auto"></div>
         </div>
       )}
+
+      {/* Add New Customer */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogTrigger asChild>
+          <Button variant="outline" className="w-full">
+            <Plus className="mr-2 h-4 w-4" />
+            Add New Customer
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Customer</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Name *</Label>
+              <Input
+                id="name"
+                value={newCustomer.name}
+                onChange={(e) => setNewCustomer(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Customer name"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone *</Label>
+              <div className="relative">
+                <Phone className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+                <Input
+                  id="phone"
+                  value={newCustomer.phone}
+                  onChange={(e) => setNewCustomer(prev => ({ ...prev, phone: e.target.value }))}
+                  placeholder="+254..."
+                  className="pl-8"
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+                <Input
+                  id="email"
+                  type="email"
+                  value={newCustomer.email}
+                  onChange={(e) => setNewCustomer(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="customer@example.com"
+                  className="pl-8"
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="address">Address</Label>
+              <Input
+                id="address"
+                value={newCustomer.address}
+                onChange={(e) => setNewCustomer(prev => ({ ...prev, address: e.target.value }))}
+                placeholder="Customer address"
+              />
+            </div>
+            
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleAddCustomer}
+                disabled={!newCustomer.name.trim() || !newCustomer.phone.trim()}
+              >
+                Add Customer
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

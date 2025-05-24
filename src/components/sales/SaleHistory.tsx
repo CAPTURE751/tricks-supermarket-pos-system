@@ -1,108 +1,57 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User } from '@/hooks/useAuth';
-import { CartItem, Customer } from './SalesModule';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
-import { Search, Calendar, FileText, ArrowDown, ArrowUp } from 'lucide-react';
-
-interface SaleRecord {
-  id: string;
-  date: Date;
-  items: CartItem[];
-  total: number;
-  paymentMethod: string;
-  cashier: string;
-  customer?: Customer;
-  receiptNumber: string;
-  status: 'completed' | 'voided' | 'refunded';
-}
+import { Search, Calendar, FileText, ArrowDown, ArrowUp, RefreshCw } from 'lucide-react';
+import { useSales } from '@/hooks/useSales';
+import { SaleWithItems } from '@/services/sales-service';
 
 interface SaleHistoryProps {
   user: User;
 }
-
-// Sample sales history data - in a real app, this would come from an API
-const sampleSalesHistory: SaleRecord[] = [
-  {
-    id: 'sale-001',
-    date: new Date(2023, 4, 15, 10, 30),
-    items: [
-      { id: '1', name: 'Coca-Cola 500ml', price: 80, category: 'Drinks', stock: 50, quantity: 3 },
-      { id: '4', name: 'Rice 2kg', price: 350, category: 'Grains', stock: 15, quantity: 1 }
-    ],
-    total: 590,
-    paymentMethod: 'cash',
-    cashier: 'John Admin',
-    receiptNumber: 'R123456',
-    status: 'completed'
-  },
-  {
-    id: 'sale-002',
-    date: new Date(2023, 4, 15, 11, 45),
-    items: [
-      { id: '2', name: 'Bread Loaf', price: 60, category: 'Bakery', stock: 25, quantity: 2 },
-      { id: '3', name: 'Milk 1L', price: 120, category: 'Dairy', stock: 30, quantity: 1 },
-      { id: '5', name: 'Cooking Oil 1L', price: 280, category: 'Cooking', stock: 20, quantity: 1 }
-    ],
-    total: 520,
-    paymentMethod: 'mpesa',
-    cashier: 'Jane Cashier',
-    customer: { id: '2', name: 'Jane Smith', phone: '+254723456789', loyaltyPoints: 85 },
-    receiptNumber: 'R123457',
-    status: 'completed'
-  },
-  {
-    id: 'sale-003',
-    date: new Date(2023, 4, 16, 9, 15),
-    items: [
-      { id: '6', name: 'Sugar 1kg', price: 150, category: 'Pantry', stock: 40, quantity: 2 }
-    ],
-    total: 300,
-    paymentMethod: 'card',
-    cashier: 'John Admin',
-    receiptNumber: 'R123458',
-    status: 'voided'
-  }
-];
 
 export const SaleHistory = ({ user }: SaleHistoryProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [sortField, setSortField] = useState('date');
+  const [sortField, setSortField] = useState('created_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [selectedSale, setSelectedSale] = useState<SaleRecord | null>(null);
+  const [selectedSale, setSelectedSale] = useState<SaleWithItems | null>(null);
+
+  const { salesHistory, loading, refetchSalesHistory } = useSales();
 
   // Filter and sort sales history
-  const filteredSales = sampleSalesHistory
+  const filteredSales = salesHistory
     .filter(sale => {
       // Search filter
       const searchMatch = 
-        sale.receiptNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (sale.customer && sale.customer.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        sale.receipt_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (sale.customer_name && sale.customer_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
         searchTerm === '';
       
       // Date filter
       let dateMatch = true;
       const today = new Date();
+      const saleDate = new Date(sale.created_at);
+      
       if (dateFilter === 'today') {
-        dateMatch = sale.date.toDateString() === today.toDateString();
+        dateMatch = saleDate.toDateString() === today.toDateString();
       } else if (dateFilter === 'yesterday') {
         const yesterday = new Date(today);
         yesterday.setDate(yesterday.getDate() - 1);
-        dateMatch = sale.date.toDateString() === yesterday.toDateString();
+        dateMatch = saleDate.toDateString() === yesterday.toDateString();
       } else if (dateFilter === 'thisWeek') {
         const startOfWeek = new Date(today);
         startOfWeek.setDate(today.getDate() - today.getDay());
-        dateMatch = sale.date >= startOfWeek;
+        dateMatch = saleDate >= startOfWeek;
       }
 
       // Payment method filter
-      const paymentMatch = paymentFilter === 'all' || sale.paymentMethod === paymentFilter;
+      const paymentMatch = paymentFilter === 'all' || sale.payment_method === paymentFilter;
       
       // Status filter
       const statusMatch = statusFilter === 'all' || sale.status === statusFilter;
@@ -110,14 +59,14 @@ export const SaleHistory = ({ user }: SaleHistoryProps) => {
       return searchMatch && dateMatch && paymentMatch && statusMatch;
     })
     .sort((a, b) => {
-      if (sortField === 'date') {
+      if (sortField === 'created_at') {
         return sortDirection === 'asc' 
-          ? a.date.getTime() - b.date.getTime()
-          : b.date.getTime() - a.date.getTime();
-      } else if (sortField === 'total') {
+          ? new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          : new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      } else if (sortField === 'total_amount') {
         return sortDirection === 'asc' 
-          ? a.total - b.total
-          : b.total - a.total;
+          ? a.total_amount - b.total_amount
+          : b.total_amount - a.total_amount;
       }
       return 0;
     });
@@ -131,8 +80,8 @@ export const SaleHistory = ({ user }: SaleHistoryProps) => {
     }
   };
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleString('en-KE', {
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('en-KE', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -142,13 +91,24 @@ export const SaleHistory = ({ user }: SaleHistoryProps) => {
     });
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-2" />
+          <p className="text-gray-400">Loading sales history...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
             <div className="flex-1">
-              <h2 className="text-xl font-bold">Sale History</h2>
+              <h2 className="text-xl font-bold">Sale History ({salesHistory.length} sales)</h2>
             </div>
             <div className="flex gap-2">
               <div className="relative flex-1">
@@ -199,6 +159,11 @@ export const SaleHistory = ({ user }: SaleHistoryProps) => {
                   <SelectItem value="refunded">Refunded</SelectItem>
                 </SelectContent>
               </Select>
+
+              <Button onClick={refetchSalesHistory} variant="outline" size="sm">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -211,21 +176,20 @@ export const SaleHistory = ({ user }: SaleHistoryProps) => {
               <thead>
                 <tr className="border-b border-gray-700">
                   <th className="text-left py-3 px-4">
-                    <div className="flex items-center cursor-pointer" onClick={() => toggleSort('date')}>
+                    <div className="flex items-center cursor-pointer" onClick={() => toggleSort('created_at')}>
                       Date & Time
-                      {sortField === 'date' && (
+                      {sortField === 'created_at' && (
                         sortDirection === 'asc' ? <ArrowUp className="ml-1 h-4 w-4" /> : <ArrowDown className="ml-1 h-4 w-4" />
                       )}
                     </div>
                   </th>
                   <th className="text-left py-3 px-4">Receipt</th>
                   <th className="text-left py-3 px-4">Customer</th>
-                  <th className="text-left py-3 px-4">Cashier</th>
                   <th className="text-left py-3 px-4">Payment</th>
                   <th className="text-left py-3 px-4">
-                    <div className="flex items-center cursor-pointer" onClick={() => toggleSort('total')}>
+                    <div className="flex items-center cursor-pointer" onClick={() => toggleSort('total_amount')}>
                       Total
-                      {sortField === 'total' && (
+                      {sortField === 'total_amount' && (
                         sortDirection === 'asc' ? <ArrowUp className="ml-1 h-4 w-4" /> : <ArrowDown className="ml-1 h-4 w-4" />
                       )}
                     </div>
@@ -245,12 +209,11 @@ export const SaleHistory = ({ user }: SaleHistoryProps) => {
                         ${sale.status === 'refunded' ? 'text-yellow-400' : ''}
                       `}
                     >
-                      <td className="py-3 px-4">{formatDate(sale.date)}</td>
-                      <td className="py-3 px-4">{sale.receiptNumber}</td>
-                      <td className="py-3 px-4">{sale.customer ? sale.customer.name : 'Walk-in Customer'}</td>
-                      <td className="py-3 px-4">{sale.cashier}</td>
-                      <td className="py-3 px-4 capitalize">{sale.paymentMethod}</td>
-                      <td className="py-3 px-4 font-semibold">KSh {sale.total.toFixed(2)}</td>
+                      <td className="py-3 px-4">{formatDate(sale.created_at)}</td>
+                      <td className="py-3 px-4 font-mono">{sale.receipt_number}</td>
+                      <td className="py-3 px-4">{sale.customer_name || 'Walk-in Customer'}</td>
+                      <td className="py-3 px-4 capitalize">{sale.payment_method}</td>
+                      <td className="py-3 px-4 font-semibold">KSh {sale.total_amount.toLocaleString()}</td>
                       <td className="py-3 px-4">
                         <span className={`
                           px-2 py-1 rounded-full text-xs capitalize
@@ -270,16 +233,13 @@ export const SaleHistory = ({ user }: SaleHistoryProps) => {
                           >
                             <FileText className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="ghost">
-                            View
-                          </Button>
                         </div>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-gray-400">
+                    <td colSpan={7} className="py-8 text-center text-gray-400">
                       No sales found matching your filters
                     </td>
                   </tr>
@@ -290,7 +250,7 @@ export const SaleHistory = ({ user }: SaleHistoryProps) => {
         </CardContent>
       </Card>
 
-      {/* This would be expanded with receipt viewing and printing functionality */}
+      {/* Receipt Details Modal */}
       {selectedSale && (
         <Card>
           <CardContent className="p-4">
@@ -308,9 +268,11 @@ export const SaleHistory = ({ user }: SaleHistoryProps) => {
             <div className="bg-white text-black p-6 rounded-lg font-mono text-sm">
               <div className="text-center mb-4">
                 <h2 className="font-bold text-lg">JEFF TRICKS SUPERMARKET</h2>
-                <p>Receipt #{selectedSale.receiptNumber}</p>
-                <p>{formatDate(selectedSale.date)}</p>
-                <p>Cashier: {selectedSale.cashier}</p>
+                <p>Receipt #{selectedSale.receipt_number}</p>
+                <p>{formatDate(selectedSale.created_at)}</p>
+                {selectedSale.customer_name && (
+                  <p>Customer: {selectedSale.customer_name}</p>
+                )}
               </div>
 
               <div className="mb-4">
@@ -323,28 +285,54 @@ export const SaleHistory = ({ user }: SaleHistoryProps) => {
                   </div>
                 </div>
                 
-                {selectedSale.items.map(item => (
+                {selectedSale.sale_items.map(item => (
                   <div key={item.id} className="mb-1">
                     <div className="flex justify-between">
-                      <span className="flex-1 truncate">{item.name}</span>
+                      <span className="flex-1 truncate">{item.product_name}</span>
                       <span className="w-8 text-center">{item.quantity}</span>
-                      <span className="w-16 text-right">{item.price.toFixed(2)}</span>
-                      <span className="w-16 text-right">{(item.price * item.quantity).toFixed(2)}</span>
+                      <span className="w-16 text-right">{item.unit_price.toFixed(2)}</span>
+                      <span className="w-16 text-right">{item.total_price.toFixed(2)}</span>
                     </div>
                   </div>
                 ))}
               </div>
 
               <div className="border-t border-black pt-2">
+                <div className="flex justify-between">
+                  <span>Subtotal:</span>
+                  <span>KSh {selectedSale.subtotal.toFixed(2)}</span>
+                </div>
+                
+                {selectedSale.discount_amount > 0 && (
+                  <div className="flex justify-between">
+                    <span>Discount:</span>
+                    <span>-KSh {selectedSale.discount_amount.toFixed(2)}</span>
+                  </div>
+                )}
+                
+                {selectedSale.tax_amount > 0 && (
+                  <div className="flex justify-between">
+                    <span>Tax:</span>
+                    <span>KSh {selectedSale.tax_amount.toFixed(2)}</span>
+                  </div>
+                )}
+                
                 <div className="flex justify-between font-bold text-lg">
                   <span>TOTAL:</span>
-                  <span>KSh {selectedSale.total.toFixed(2)}</span>
+                  <span>KSh {selectedSale.total_amount.toFixed(2)}</span>
                 </div>
                 
                 <div className="flex justify-between mt-2">
-                  <span>Payment ({selectedSale.paymentMethod}):</span>
-                  <span>KSh {selectedSale.total.toFixed(2)}</span>
+                  <span>Payment ({selectedSale.payment_method}):</span>
+                  <span>KSh {selectedSale.amount_received.toFixed(2)}</span>
                 </div>
+                
+                {selectedSale.change_amount > 0 && (
+                  <div className="flex justify-between">
+                    <span>Change:</span>
+                    <span>KSh {selectedSale.change_amount.toFixed(2)}</span>
+                  </div>
+                )}
               </div>
             </div>
 

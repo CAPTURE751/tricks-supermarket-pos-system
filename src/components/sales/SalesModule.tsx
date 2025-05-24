@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { User } from '@/hooks/useAuth';
 import { ProductGrid } from './ProductGrid';
