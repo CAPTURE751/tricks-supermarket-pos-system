@@ -67,7 +67,7 @@ export const CheckoutPanel = ({ items, user, customer, saleNote, onCheckoutCompl
     setIsProcessing(true);
 
     try {
-      // Prepare items for the database
+      // Prepare items for the database with correct structure
       const saleItems = items.map(item => ({
         product_id: item.id,
         name: item.name,
@@ -76,6 +76,9 @@ export const CheckoutPanel = ({ items, user, customer, saleNote, onCheckoutCompl
         price: item.price,
         tax_rate: item.category === 'Beverages' || item.category === 'Electronics' ? 16 : 0
       }));
+
+      console.log('Completing sale with items:', saleItems);
+      console.log('Sale totals:', { subtotal, taxAmount, total });
 
       // Complete the sale
       await completeSale(
