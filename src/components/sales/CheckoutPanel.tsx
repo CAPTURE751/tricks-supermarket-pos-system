@@ -79,7 +79,7 @@ export const CheckoutPanel = ({
                 }`}
                 variant={canCheckout ? "default" : "ghost"}
               >
-                Proceed to Checkout - KSh {total.toFixed(2)}
+                Checkout - KSh {total.toFixed(2)}
               </Button>
             </div>
           )}
