@@ -9,6 +9,151 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          barcode: string | null
+          category_id: string | null
+          cost_price: number
+          created_at: string
+          description: string | null
+          expiry_date: string | null
+          id: string
+          is_active: boolean
+          location: string | null
+          max_stock_level: number
+          min_stock_level: number
+          name: string
+          selling_price: number
+          sku: string
+          stock_quantity: number
+          tax_rate: number
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          barcode?: string | null
+          category_id?: string | null
+          cost_price?: number
+          created_at?: string
+          description?: string | null
+          expiry_date?: string | null
+          id?: string
+          is_active?: boolean
+          location?: string | null
+          max_stock_level?: number
+          min_stock_level?: number
+          name: string
+          selling_price?: number
+          sku: string
+          stock_quantity?: number
+          tax_rate?: number
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          barcode?: string | null
+          category_id?: string | null
+          cost_price?: number
+          created_at?: string
+          description?: string | null
+          expiry_date?: string | null
+          id?: string
+          is_active?: boolean
+          location?: string | null
+          max_stock_level?: number
+          min_stock_level?: number
+          name?: string
+          selling_price?: number
+          sku?: string
+          stock_quantity?: number
+          tax_rate?: number
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_movements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          movement_type: string
+          new_quantity: number
+          notes: string | null
+          previous_quantity: number
+          product_id: string
+          quantity_change: number
+          reference_number: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          movement_type: string
+          new_quantity: number
+          notes?: string | null
+          previous_quantity: number
+          product_id: string
+          quantity_change: number
+          reference_number?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          movement_type?: string
+          new_quantity?: number
+          notes?: string | null
+          previous_quantity?: number
+          product_id?: string
+          quantity_change?: number
+          reference_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           email: string | null
@@ -35,7 +180,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      update_product_stock: {
+        Args: {
+          p_product_id: string
+          p_quantity_change: number
+          p_movement_type: string
+          p_reference_number?: string
+          p_notes?: string
+          p_created_by?: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

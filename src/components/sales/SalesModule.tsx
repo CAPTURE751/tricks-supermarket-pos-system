@@ -11,7 +11,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, ShoppingBag, Clock, BarChart2 } from 'lucide-react';
+import { Search, ShoppingBag, Clock, BarChart2, RefreshCw } from 'lucide-react';
+import { useProducts } from '@/hooks/useProducts';
+import { DatabaseProduct } from '@/services/products-service';
 
 export interface Product {
   id: string;
@@ -40,18 +42,19 @@ interface SalesModuleProps {
   user: User;
 }
 
-const sampleProducts: Product[] = [
-  { id: '1', name: 'Coca-Cola 500ml', price: 80, category: 'Drinks', stock: 50, barcode: '123456789', sku: 'DRK001' },
-  { id: '2', name: 'Bread Loaf', price: 60, category: 'Bakery', stock: 25, sku: 'BKY001' },
-  { id: '3', name: 'Milk 1L', price: 120, category: 'Dairy', stock: 30, sku: 'DRY001' },
-  { id: '4', name: 'Rice 2kg', price: 350, category: 'Grains', stock: 15, sku: 'GRN001' },
-  { id: '5', name: 'Cooking Oil 1L', price: 280, category: 'Cooking', stock: 20, sku: 'COK001' },
-  { id: '6', name: 'Sugar 1kg', price: 150, category: 'Pantry', stock: 40, sku: 'PNT001' },
-];
+// Transform database product to UI product format
+const transformProduct = (dbProduct: DatabaseProduct): Product => ({
+  id: dbProduct.id,
+  name: dbProduct.name,
+  price: dbProduct.selling_price,
+  category: dbProduct.categories?.name || 'Uncategorized',
+  stock: dbProduct.stock_quantity,
+  barcode: dbProduct.barcode || undefined,
+  sku: dbProduct.sku
+});
 
 export const SalesModule = ({ user }: SalesModuleProps) => {
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [products] = useState<Product[]>(sampleProducts);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [activeTab, setActiveTab] = useState<string>('new-sale');
@@ -59,7 +62,14 @@ export const SalesModule = ({ user }: SalesModuleProps) => {
   const [saleNote, setSaleNote] = useState<string>('');
   const [parkedSales, setParkedSales] = useState<{id: string, items: CartItem[], customer: Customer | null, note: string}[]>([]);
 
-  const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
+  const { products: dbProducts, categories, loading, error, refetchProducts, updateProductStock } = useProducts();
+
+  // Transform database products to UI format
+  const products = dbProducts.map(transformProduct);
+
+  // Get unique categories from products and categories table
+  const categoriesFromProducts = Array.from(new Set(products.map(p => p.category)));
+  const allCategories = ['All', ...categoriesFromProducts];
 
   const addToCart = (product: Product) => {
     setCart(prev => {
@@ -124,6 +134,19 @@ export const SalesModule = ({ user }: SalesModuleProps) => {
     }
   };
 
+  const handleCheckoutComplete = async () => {
+    try {
+      // Update stock for each item in the cart
+      for (const item of cart) {
+        await updateProductStock(item.id, -item.quantity, `SALE-${Date.now()}`);
+      }
+      clearCart();
+    } catch (error) {
+      console.error('Error updating stock after sale:', error);
+      // Don't clear cart if stock update fails
+    }
+  };
+
   const filteredProducts = products.filter(product => {
     const matchesSearch = 
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -132,6 +155,31 @@ export const SalesModule = ({ user }: SalesModuleProps) => {
     const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-2" />
+          <p className="text-gray-400">Loading products...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-red-400 mb-4">Error loading products: {error}</p>
+          <Button onClick={refetchProducts} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -161,7 +209,13 @@ export const SalesModule = ({ user }: SalesModuleProps) => {
             <div className="flex-1 space-y-4">
               <Card>
                 <CardContent className="p-4">
-                  <h2 className="text-xl font-bold mb-4">Products</h2>
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold">Products ({products.length})</h2>
+                    <Button onClick={refetchProducts} variant="outline" size="sm">
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Refresh
+                    </Button>
+                  </div>
                   
                   {/* Search and Filters */}
                   <div className="flex space-x-4 mb-4">
@@ -178,7 +232,7 @@ export const SalesModule = ({ user }: SalesModuleProps) => {
                   </div>
                   
                   <div className="flex space-x-2 mb-4 overflow-x-auto">
-                    {categories.map(category => (
+                    {allCategories.map(category => (
                       <Button
                         key={category}
                         variant={selectedCategory === category ? "default" : "outline"}
@@ -264,7 +318,7 @@ export const SalesModule = ({ user }: SalesModuleProps) => {
                 user={user}
                 customer={selectedCustomer}
                 saleNote={saleNote}
-                onCheckoutComplete={clearCart}
+                onCheckoutComplete={handleCheckoutComplete}
               />
             </div>
           </div>

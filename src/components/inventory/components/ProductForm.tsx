@@ -1,27 +1,18 @@
 
 import { useState } from 'react';
-import { 
-  Form, 
-  FormControl, 
-  FormDescription, 
-  FormField, 
-  FormItem, 
-  FormLabel, 
-  FormMessage 
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Product } from '../types/inventory-types';
-import { mockSuppliers } from '../data/mockData';
+import { DatabaseProduct, DatabaseCategory } from '@/services/products-service';
 
 interface ProductFormProps {
-  product?: Product | null;
+  product?: DatabaseProduct | null;
+  categories: DatabaseCategory[];
   onSubmit: (product: any) => void;
   onCancel: () => void;
 }
 
-export const ProductForm = ({ product, onSubmit, onCancel }: ProductFormProps) => {
+export const ProductForm = ({ product, categories, onSubmit, onCancel }: ProductFormProps) => {
   const isEditing = !!product;
   
   const [formData, setFormData] = useState({
@@ -29,26 +20,25 @@ export const ProductForm = ({ product, onSubmit, onCancel }: ProductFormProps) =
     sku: product?.sku || '',
     barcode: product?.barcode || '',
     description: product?.description || '',
-    category: product?.category || '',
-    department: product?.department || '',
-    costPrice: product?.costPrice || 0,
-    sellingPrice: product?.sellingPrice || 0,
-    stock: product?.stock || 0,
-    minStockLevel: product?.minStockLevel || 0,
-    maxStockLevel: product?.maxStockLevel || 0,
+    category_id: product?.category_id || '',
+    cost_price: product?.cost_price || 0,
+    selling_price: product?.selling_price || 0,
+    stock_quantity: product?.stock_quantity || 0,
+    min_stock_level: product?.min_stock_level || 0,
+    max_stock_level: product?.max_stock_level || 0,
     unit: product?.unit || 'piece',
-    secondaryUnit: product?.secondaryUnit || '',
-    conversionRate: product?.conversionRate || 1,
-    taxRate: product?.taxRate || 0,
-    supplierId: product?.supplierId || '',
-    isActive: product?.isActive !== false,
-    expiryDate: product?.expiryDate ? product.expiryDate.split('T')[0] : '',
+    tax_rate: product?.tax_rate || 0,
     location: product?.location || '',
+    expiry_date: product?.expiry_date ? product.expiry_date.split('T')[0] : '',
+    is_active: product?.is_active !== false,
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target;
+    setFormData(prev => ({ 
+      ...prev, 
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value 
+    }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -57,22 +47,22 @@ export const ProductForm = ({ product, onSubmit, onCancel }: ProductFormProps) =
     // Transform form data back to proper types
     const transformedData = {
       ...formData,
-      costPrice: Number(formData.costPrice),
-      sellingPrice: Number(formData.sellingPrice),
-      stock: Number(formData.stock),
-      minStockLevel: Number(formData.minStockLevel),
-      maxStockLevel: Number(formData.maxStockLevel),
-      conversionRate: formData.conversionRate ? Number(formData.conversionRate) : undefined,
-      taxRate: Number(formData.taxRate),
-      expiryDate: formData.expiryDate ? new Date(formData.expiryDate).toISOString() : undefined,
+      cost_price: Number(formData.cost_price),
+      selling_price: Number(formData.selling_price),
+      stock_quantity: Number(formData.stock_quantity),
+      min_stock_level: Number(formData.min_stock_level),
+      max_stock_level: Number(formData.max_stock_level),
+      tax_rate: Number(formData.tax_rate),
+      expiry_date: formData.expiry_date || null,
+      category_id: formData.category_id || null,
     };
 
     if (isEditing) {
       onSubmit({
         ...transformedData,
         id: product.id,
-        createdAt: product.createdAt,
-        updatedAt: new Date().toISOString(),
+        created_at: product.created_at,
+        updated_at: new Date().toISOString(),
       });
     } else {
       onSubmit(transformedData);
@@ -143,47 +133,21 @@ export const ProductForm = ({ product, onSubmit, onCancel }: ProductFormProps) =
             />
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="category" className="block text-sm font-medium mb-1">
-                Category
-              </label>
-              <Input
-                id="category"
-                name="category"
-                value={formData.category}
-                onChange={handleChange}
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="department" className="block text-sm font-medium mb-1">
-                Department
-              </label>
-              <Input
-                id="department"
-                name="department"
-                value={formData.department}
-                onChange={handleChange}
-              />
-            </div>
-          </div>
-
           <div>
-            <label htmlFor="supplierId" className="block text-sm font-medium mb-1">
-              Supplier
+            <label htmlFor="category_id" className="block text-sm font-medium mb-1">
+              Category
             </label>
             <select
-              id="supplierId"
-              name="supplierId"
-              value={formData.supplierId}
+              id="category_id"
+              name="category_id"
+              value={formData.category_id}
               onChange={handleChange}
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
             >
-              <option value="">-- Select Supplier --</option>
-              {mockSuppliers.map(supplier => (
-                <option key={supplier.id} value={supplier.id}>
-                  {supplier.name}
+              <option value="">-- Select Category --</option>
+              {categories.map(category => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
                 </option>
               ))}
             </select>
@@ -196,32 +160,32 @@ export const ProductForm = ({ product, onSubmit, onCancel }: ProductFormProps) =
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="costPrice" className="block text-sm font-medium mb-1">
+              <label htmlFor="cost_price" className="block text-sm font-medium mb-1">
                 Cost Price *
               </label>
               <Input
-                id="costPrice"
-                name="costPrice"
+                id="cost_price"
+                name="cost_price"
                 type="number"
                 min="0"
                 step="0.01"
-                value={formData.costPrice}
+                value={formData.cost_price}
                 onChange={handleChange}
                 required
               />
             </div>
             
             <div>
-              <label htmlFor="sellingPrice" className="block text-sm font-medium mb-1">
+              <label htmlFor="selling_price" className="block text-sm font-medium mb-1">
                 Selling Price *
               </label>
               <Input
-                id="sellingPrice"
-                name="sellingPrice"
+                id="selling_price"
+                name="selling_price"
                 type="number"
                 min="0"
                 step="0.01"
-                value={formData.sellingPrice}
+                value={formData.selling_price}
                 onChange={handleChange}
                 required
               />
@@ -230,44 +194,44 @@ export const ProductForm = ({ product, onSubmit, onCancel }: ProductFormProps) =
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label htmlFor="stock" className="block text-sm font-medium mb-1">
+              <label htmlFor="stock_quantity" className="block text-sm font-medium mb-1">
                 Current Stock *
               </label>
               <Input
-                id="stock"
-                name="stock"
+                id="stock_quantity"
+                name="stock_quantity"
                 type="number"
                 min="0"
-                value={formData.stock}
+                value={formData.stock_quantity}
                 onChange={handleChange}
                 required
               />
             </div>
             
             <div>
-              <label htmlFor="minStockLevel" className="block text-sm font-medium mb-1">
+              <label htmlFor="min_stock_level" className="block text-sm font-medium mb-1">
                 Min Stock
               </label>
               <Input
-                id="minStockLevel"
-                name="minStockLevel"
+                id="min_stock_level"
+                name="min_stock_level"
                 type="number"
                 min="0"
-                value={formData.minStockLevel}
+                value={formData.min_stock_level}
                 onChange={handleChange}
               />
             </div>
             
             <div>
-              <label htmlFor="maxStockLevel" className="block text-sm font-medium mb-1">
+              <label htmlFor="max_stock_level" className="block text-sm font-medium mb-1">
                 Max Stock
               </label>
               <Input
-                id="maxStockLevel"
-                name="maxStockLevel"
+                id="max_stock_level"
+                name="max_stock_level"
                 type="number"
                 min="0"
-                value={formData.maxStockLevel}
+                value={formData.max_stock_level}
                 onChange={handleChange}
               />
             </div>
@@ -288,16 +252,16 @@ export const ProductForm = ({ product, onSubmit, onCancel }: ProductFormProps) =
             </div>
             
             <div>
-              <label htmlFor="taxRate" className="block text-sm font-medium mb-1">
+              <label htmlFor="tax_rate" className="block text-sm font-medium mb-1">
                 Tax Rate (%)
               </label>
               <Input
-                id="taxRate"
-                name="taxRate"
+                id="tax_rate"
+                name="tax_rate"
                 type="number"
                 min="0"
                 max="100"
-                value={formData.taxRate}
+                value={formData.tax_rate}
                 onChange={handleChange}
               />
             </div>
@@ -316,14 +280,14 @@ export const ProductForm = ({ product, onSubmit, onCancel }: ProductFormProps) =
           </div>
           
           <div>
-            <label htmlFor="expiryDate" className="block text-sm font-medium mb-1">
+            <label htmlFor="expiry_date" className="block text-sm font-medium mb-1">
               Expiry Date
             </label>
             <Input
-              id="expiryDate"
-              name="expiryDate"
+              id="expiry_date"
+              name="expiry_date"
               type="date"
-              value={formData.expiryDate}
+              value={formData.expiry_date}
               onChange={handleChange}
             />
           </div>
