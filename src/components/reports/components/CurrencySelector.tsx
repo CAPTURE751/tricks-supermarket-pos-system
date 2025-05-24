@@ -19,8 +19,8 @@ export const CurrencySelector: React.FC<CurrencySelectorProps> = ({
         onChange={(e) => onCurrencyChange(e.target.value as 'USD' | 'KES' | 'EUR' | 'GBP')}
         className="bg-gray-700 text-white px-3 py-1 rounded border border-gray-600"
       >
-        <option value="USD">USD ($)</option>
         <option value="KES">KES (KSh)</option>
+        <option value="USD">USD ($)</option>
         <option value="EUR">EUR (€)</option>
         <option value="GBP">GBP (£)</option>
       </select>

@@ -16,7 +16,7 @@ interface ReportsModuleProps {
 }
 
 export const ReportsModule = ({ user }: ReportsModuleProps) => {
-  const [selectedCurrency, setSelectedCurrency] = useState<'USD' | 'KES' | 'EUR' | 'GBP'>('USD');
+  const [selectedCurrency, setSelectedCurrency] = useState<'USD' | 'KES' | 'EUR' | 'GBP'>('KES');
 
   const formatCurrency = (amount: number | string | undefined): string => {
     return formatCurrencyUtil(amount, selectedCurrency, currencySymbols, currencyRates);
