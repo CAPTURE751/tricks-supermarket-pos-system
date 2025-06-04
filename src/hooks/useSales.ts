@@ -2,14 +2,18 @@
 import { useState, useEffect } from 'react';
 import { SalesService, DatabaseSale, DatabaseCustomer, SaleWithItems } from '@/services/sales-service';
 import { toast } from 'sonner';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 export const useSales = () => {
   const [salesHistory, setSalesHistory] = useState<SaleWithItems[]>([]);
   const [customers, setCustomers] = useState<DatabaseCustomer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
 
   const fetchSalesHistory = async () => {
+    if (!user) return;
+    
     try {
       setLoading(true);
       const data = await SalesService.getSalesHistory();
@@ -26,6 +30,8 @@ export const useSales = () => {
   };
 
   const fetchCustomers = async () => {
+    if (!user) return;
+    
     try {
       const data = await SalesService.getCustomers();
       setCustomers(data);
@@ -44,9 +50,14 @@ export const useSales = () => {
     paymentMethod: string,
     options: any = {}
   ) => {
+    if (!user) {
+      toast.error('You must be logged in to complete a sale');
+      throw new Error('User not authenticated');
+    }
+    
     try {
       const saleId = await SalesService.completeSale(
-        userId,
+        user.id, // Use authenticated user ID
         items,
         subtotal,
         taxAmount,
@@ -68,6 +79,8 @@ export const useSales = () => {
   };
 
   const searchCustomers = async (query: string) => {
+    if (!user) return [];
+    
     try {
       const data = await SalesService.searchCustomers(query);
       return data;
@@ -79,6 +92,11 @@ export const useSales = () => {
   };
 
   const addCustomer = async (customerData: any) => {
+    if (!user) {
+      toast.error('You must be logged in to add customers');
+      throw new Error('User not authenticated');
+    }
+    
     try {
       const newCustomer = await SalesService.addCustomer(customerData);
       setCustomers(prev => [...prev, newCustomer]);
@@ -92,9 +110,11 @@ export const useSales = () => {
   };
 
   useEffect(() => {
-    fetchSalesHistory();
-    fetchCustomers();
-  }, []);
+    if (user) {
+      fetchSalesHistory();
+      fetchCustomers();
+    }
+  }, [user]);
 
   return {
     salesHistory,

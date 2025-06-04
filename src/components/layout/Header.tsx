@@ -1,84 +1,95 @@
 
-import { useState, useEffect } from 'react';
-import { User } from '@/hooks/useAuth';
-import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
+import { User, Settings, LogOut, Clock } from 'lucide-react';
+import { User as UserType } from '@/hooks/useAuth';
 
 interface HeaderProps {
-  user: User;
+  user: UserType;
+  onSignOut?: () => void;
 }
 
-export const Header = ({ user }: HeaderProps) => {
-  const { logout } = useAuth();
-  const [currentTime, setCurrentTime] = useState(new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  const formatTime = () => {
-    return currentTime.toLocaleString('en-KE', {
+export const Header = ({ user, onSignOut }: HeaderProps) => {
+  const getCurrentTime = () => {
+    const now = new Date();
+    return now.toLocaleString('en-KE', {
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit',
       hour12: true,
       timeZone: 'Africa/Nairobi'
     }) + ' EAT';
   };
 
-  const formatDate = () => {
-    return currentTime.toLocaleDateString('en-KE', {
+  const getCurrentDate = () => {
+    const now = new Date();
+    return now.toLocaleDateString('en-KE', {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
-      year: 'numeric',
       timeZone: 'Africa/Nairobi'
     });
   };
 
   return (
-    <header className="bg-gray-800 border-b border-gray-700 p-4">
-      <div className="flex items-center justify-between">
-        {/* Logo and Branding */}
-        <div className="flex items-center space-x-4">
-          <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-xl">JT</span>
+    <header className="bg-gray-800 text-white p-4 flex justify-between items-center border-b border-gray-700">
+      <div className="flex items-center space-x-4">
+        <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+          <span className="text-white font-bold text-lg">JT</span>
+        </div>
+        <div>
+          <h1 className="text-xl font-bold">Jeff Tricks Supermarket</h1>
+          <p className="text-sm text-gray-300">Point of Sale System</p>
+        </div>
+      </div>
+
+      <div className="flex items-center space-x-4">
+        <div className="text-right text-sm">
+          <div className="flex items-center space-x-1">
+            <Clock className="h-4 w-4" />
+            <span className="font-mono">{getCurrentTime()}</span>
           </div>
-          <div>
-            <h1 className="text-white text-xl font-bold">Jeff Tricks Supermarket</h1>
-            <p className="text-gray-300 text-sm">Point of Sale System</p>
-          </div>
+          <div className="text-gray-300">{getCurrentDate()}</div>
         </div>
 
-        {/* Center Info */}
-        <div className="text-center">
-          <div className="text-white font-mono text-lg">{formatTime()}</div>
-          <div className="text-gray-300 text-sm">{formatDate()}</div>
-        </div>
-
-        {/* User Info and Actions */}
-        <div className="flex items-center space-x-4">
-          <div className="text-right">
-            <div className="text-white font-semibold">{user.name}</div>
-            <div className="text-gray-300 text-sm">{user.role} • {user.branch}</div>
-          </div>
-          
-          <div className="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center">
-            <span className="text-white font-semibold">
-              {user.name.split(' ').map(n => n[0]).join('')}
-            </span>
-          </div>
-          
-          <button
-            onClick={logout}
-            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
-          >
-            Logout
-          </button>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="flex items-center space-x-2 text-white hover:bg-gray-700">
+              <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
+                <User className="h-4 w-4" />
+              </div>
+              <div className="text-left">
+                <div className="font-medium">{user.name}</div>
+                <div className="text-xs text-gray-300">{user.role}</div>
+              </div>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56 bg-gray-800 border-gray-700" align="end">
+            <DropdownMenuItem className="text-white hover:bg-gray-700">
+              <User className="mr-2 h-4 w-4" />
+              <span>Profile</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem className="text-white hover:bg-gray-700">
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Settings</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-gray-700" />
+            {onSignOut && (
+              <DropdownMenuItem 
+                className="text-red-400 hover:bg-gray-700 hover:text-red-300"
+                onClick={onSignOut}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Sign Out</span>
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );
