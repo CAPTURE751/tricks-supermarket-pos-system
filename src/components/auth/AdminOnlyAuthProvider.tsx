@@ -30,6 +30,7 @@ interface AuthContextType {
     pin?: string;
   }) => Promise<{ error: any }>;
   canAccess: (module: string) => boolean;
+  createInitialAdmin: () => Promise<{ error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -79,11 +80,9 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          setTimeout(async () => {
-            const userProfile = await fetchProfile(session.user.id);
-            setProfile(userProfile);
-            setIsLoading(false);
-          }, 0);
+          const userProfile = await fetchProfile(session.user.id);
+          setProfile(userProfile);
+          setIsLoading(false);
         } else {
           setProfile(null);
           setIsLoading(false);
@@ -117,11 +116,13 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
       });
       
       if (error) {
+        console.error('Sign in error:', error);
         toast.error(error.message);
       }
       
       return { error };
     } catch (error: any) {
+      console.error('Unexpected sign in error:', error);
       toast.error('An unexpected error occurred');
       return { error };
     }
@@ -142,6 +143,51 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
 
   const verifyPin = (pin: string) => {
     return profile?.pin === pin;
+  };
+
+  const createInitialAdmin = async () => {
+    try {
+      // Create the admin user in auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: 'admin@jefftricks.com',
+        password: 'Admin123!',
+      });
+
+      if (authError) {
+        console.error('Auth error:', authError);
+        toast.error('Failed to create admin user: ' + authError.message);
+        return { error: authError };
+      }
+
+      if (authData.user) {
+        // Create the profile
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([{
+            id: authData.user.id,
+            name: 'System Administrator',
+            role: 'Admin',
+            branch_id: null,
+            pin: '1234',
+            is_active: true
+          }]);
+
+        if (profileError) {
+          console.error('Profile error:', profileError);
+          toast.error('Failed to create admin profile: ' + profileError.message);
+          return { error: profileError };
+        }
+
+        toast.success('Initial admin user created successfully! Please check your email to confirm your account, then you can log in with admin@jefftricks.com');
+        return { error: null };
+      }
+
+      return { error: new Error('Failed to create user') };
+    } catch (error: any) {
+      console.error('Unexpected error:', error);
+      toast.error('An unexpected error occurred');
+      return { error };
+    }
   };
 
   const createUser = async (userData: {
@@ -218,7 +264,8 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
       signOut,
       verifyPin,
       createUser,
-      canAccess
+      canAccess,
+      createInitialAdmin
     }}>
       {children}
     </AuthContext.Provider>

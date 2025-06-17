@@ -10,7 +10,8 @@ export const AdminLoginScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn } = useAuth();
+  const [isCreatingAdmin, setIsCreatingAdmin] = useState(false);
+  const { signIn, createInitialAdmin } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,6 +26,15 @@ export const AdminLoginScreen = () => {
       toast.error('An error occurred during sign in');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCreateInitialAdmin = async () => {
+    setIsCreatingAdmin(true);
+    try {
+      await createInitialAdmin();
+    } finally {
+      setIsCreatingAdmin(false);
     }
   };
 
@@ -88,12 +98,40 @@ export const AdminLoginScreen = () => {
             </Button>
           </form>
 
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-white px-2 text-gray-500">Or</span>
+              </div>
+            </div>
+
+            <Button
+              onClick={handleCreateInitialAdmin}
+              disabled={isCreatingAdmin}
+              variant="outline"
+              className="w-full mt-4 touch-button text-lg font-semibold"
+              size="lg"
+            >
+              {isCreatingAdmin ? (
+                <div className="flex items-center space-x-2">
+                  <div className="w-5 h-5 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
+                  <span>Creating Admin...</span>
+                </div>
+              ) : (
+                'Create Initial Admin User'
+              )}
+            </Button>
+          </div>
+
           <div className="mt-8 p-4 bg-blue-50 rounded-xl border border-blue-200">
             <p className="text-sm text-blue-800 font-medium text-center">
               🔒 Secure Access Only
             </p>
             <p className="text-xs text-blue-600 text-center mt-1">
-              Contact your administrator for access credentials
+              Default credentials: admin@jefftricks.com / Admin123!
             </p>
           </div>
         </div>
