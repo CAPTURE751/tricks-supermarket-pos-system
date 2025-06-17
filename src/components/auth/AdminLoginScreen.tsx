@@ -15,14 +15,19 @@ export const AdminLoginScreen = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Form submitted with:', { email });
     setIsLoading(true);
 
     try {
       const { error } = await signIn(email, password);
       if (error) {
+        console.error('Login error:', error);
         toast.error('Invalid credentials. Please try again.');
+      } else {
+        console.log('Login successful');
       }
     } catch (error) {
+      console.error('Unexpected login error:', error);
       toast.error('An error occurred during sign in');
     } finally {
       setIsLoading(false);
@@ -30,9 +35,15 @@ export const AdminLoginScreen = () => {
   };
 
   const handleCreateInitialAdmin = async () => {
+    console.log('Creating initial admin...');
     setIsCreatingAdmin(true);
     try {
-      await createInitialAdmin();
+      const { error } = await createInitialAdmin();
+      if (!error) {
+        // Pre-fill the form with admin credentials for convenience
+        setEmail('admin@jefftricks.com');
+        setPassword('Admin123!');
+      }
     } finally {
       setIsCreatingAdmin(false);
     }

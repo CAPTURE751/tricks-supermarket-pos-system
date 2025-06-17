@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -53,6 +52,7 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
 
   const fetchProfile = async (userId: string) => {
     try {
+      console.log('Fetching profile for user:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -61,17 +61,22 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
 
       if (error) {
         console.error('Error fetching profile:', error);
+        toast.error('Failed to load user profile');
         return null;
       }
 
+      console.log('Profile fetched successfully:', data);
       return data as UserProfile;
     } catch (error) {
       console.error('Error in fetchProfile:', error);
+      toast.error('An error occurred while loading profile');
       return null;
     }
   };
 
   useEffect(() => {
+    console.log('Setting up auth listener...');
+    
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -92,6 +97,7 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session?.user?.id);
       setSession(session);
       setUser(session?.user ?? null);
       
@@ -110,6 +116,7 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
 
   const signIn = async (email: string, password: string) => {
     try {
+      console.log('Attempting sign in for:', email);
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -117,13 +124,16 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
       
       if (error) {
         console.error('Sign in error:', error);
-        toast.error(error.message);
+        toast.error(`Sign in failed: ${error.message}`);
+      } else {
+        console.log('Sign in successful');
+        toast.success('Signed in successfully');
       }
       
       return { error };
     } catch (error: any) {
       console.error('Unexpected sign in error:', error);
-      toast.error('An unexpected error occurred');
+      toast.error('An unexpected error occurred during sign in');
       return { error };
     }
   };
@@ -147,19 +157,30 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
 
   const createInitialAdmin = async () => {
     try {
+      console.log('Creating initial admin user...');
+      
       // Create the admin user in auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: 'admin@jefftricks.com',
         password: 'Admin123!',
+        options: {
+          emailRedirectTo: window.location.origin
+        }
       });
 
       if (authError) {
         console.error('Auth error:', authError);
-        toast.error('Failed to create admin user: ' + authError.message);
+        if (authError.message.includes('already registered')) {
+          toast.error('Admin user already exists. Try logging in instead.');
+        } else {
+          toast.error(`Failed to create admin user: ${authError.message}`);
+        }
         return { error: authError };
       }
 
       if (authData.user) {
+        console.log('Auth user created, creating profile...');
+        
         // Create the profile
         const { error: profileError } = await supabase
           .from('profiles')
@@ -174,18 +195,22 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
 
         if (profileError) {
           console.error('Profile error:', profileError);
-          toast.error('Failed to create admin profile: ' + profileError.message);
+          toast.error(`Failed to create admin profile: ${profileError.message}`);
           return { error: profileError };
         }
 
-        toast.success('Initial admin user created successfully! Please check your email to confirm your account, then you can log in with admin@jefftricks.com');
+        console.log('Admin user created successfully');
+        toast.success('Initial admin user created successfully! You can now log in with admin@jefftricks.com');
         return { error: null };
       }
 
-      return { error: new Error('Failed to create user') };
+      const error = new Error('Failed to create user - no user data returned');
+      console.error(error);
+      toast.error('Failed to create admin user');
+      return { error };
     } catch (error: any) {
-      console.error('Unexpected error:', error);
-      toast.error('An unexpected error occurred');
+      console.error('Unexpected error creating admin:', error);
+      toast.error(`An unexpected error occurred: ${error.message}`);
       return { error };
     }
   };
