@@ -62,7 +62,28 @@ export class SalesService {
     const { data: sales, error } = await supabase
       .from('sales')
       .select(`
-        *,
+        id,
+        user_id,
+        customer_id,
+        customer_name,
+        customer_phone,
+        customer_email,
+        subtotal,
+        discount_amount,
+        discount_percentage,
+        tax_amount,
+        total_amount,
+        payment_method,
+        amount_received,
+        change_amount,
+        sale_note,
+        receipt_number,
+        sale_date,
+        branch_id,
+        session_id,
+        status,
+        created_at,
+        updated_at,
         sale_items (*)
       `)
       .order('created_at', { ascending: false });
@@ -79,7 +100,28 @@ export class SalesService {
     const { data: sale, error } = await supabase
       .from('sales')
       .select(`
-        *,
+        id,
+        user_id,
+        customer_id,
+        customer_name,
+        customer_phone,
+        customer_email,
+        subtotal,
+        discount_amount,
+        discount_percentage,
+        tax_amount,
+        total_amount,
+        payment_method,
+        amount_received,
+        change_amount,
+        sale_note,
+        receipt_number,
+        sale_date,
+        branch_id,
+        session_id,
+        status,
+        created_at,
+        updated_at,
         sale_items (*)
       `)
       .eq('id', id)
@@ -126,7 +168,7 @@ export class SalesService {
     return data || [];
   }
 
-  static async addCustomer(customerData: Partial<DatabaseCustomer>): Promise<DatabaseCustomer> {
+  static async addCustomer(customerData: Omit<DatabaseCustomer, 'id' | 'created_at' | 'updated_at' | 'loyalty_points' | 'total_purchases' | 'last_purchase_date'> & Partial<Pick<DatabaseCustomer, 'loyalty_points' | 'total_purchases' | 'last_purchase_date'>>): Promise<DatabaseCustomer> {
     const { data, error } = await supabase
       .from('customers')
       .insert([customerData])
