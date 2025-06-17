@@ -726,7 +726,7 @@ export type Database = {
               p_notes?: string
               p_created_by?: string
             }
-        Returns: boolean
+        Returns: undefined
       }
     }
     Enums: {

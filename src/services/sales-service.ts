@@ -3,8 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface DatabaseSale {
   id: string;
-  receipt_number: string;
-  user_id: string | null;
+  user_id: string;
   customer_id: string | null;
   customer_name: string | null;
   customer_phone: string | null;
@@ -18,9 +17,11 @@ export interface DatabaseSale {
   amount_received: number;
   change_amount: number;
   sale_note: string | null;
-  status: string;
+  receipt_number: string;
+  sale_date: string;
   branch_id: string | null;
   session_id: string | null;
+  status: string;
   created_at: string;
   updated_at: string;
 }
@@ -38,6 +39,10 @@ export interface DatabaseSaleItem {
   created_at: string;
 }
 
+export interface SaleWithItems extends DatabaseSale {
+  sale_items: DatabaseSaleItem[];
+}
+
 export interface DatabaseCustomer {
   id: string;
   name: string;
@@ -52,32 +57,99 @@ export interface DatabaseCustomer {
   updated_at: string;
 }
 
-export interface SaleWithItems extends DatabaseSale {
-  sale_items: DatabaseSaleItem[];
-}
+export class SalesService {
+  static async getSalesHistory(): Promise<SaleWithItems[]> {
+    const { data: sales, error } = await supabase
+      .from('sales')
+      .select(`
+        *,
+        sale_items (*)
+      `)
+      .order('created_at', { ascending: false });
 
-export const SalesService = {
-  // Complete a sale transaction
-  async completeSale(
+    if (error) {
+      console.error('Error fetching sales history:', error);
+      throw new Error('Failed to fetch sales history');
+    }
+
+    return sales as SaleWithItems[];
+  }
+
+  static async getSaleById(id: string): Promise<SaleWithItems> {
+    const { data: sale, error } = await supabase
+      .from('sales')
+      .select(`
+        *,
+        sale_items (*)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('Error fetching sale:', error);
+      throw new Error('Failed to fetch sale');
+    }
+
+    return sale as SaleWithItems;
+  }
+
+  static async getCustomers(): Promise<DatabaseCustomer[]> {
+    const { data, error } = await supabase
+      .from('customers')
+      .select('*')
+      .order('name');
+
+    if (error) {
+      console.error('Error fetching customers:', error);
+      throw new Error('Failed to fetch customers');
+    }
+
+    return data || [];
+  }
+
+  static async searchCustomers(query: string): Promise<DatabaseCustomer[]> {
+    if (!query.trim()) {
+      return [];
+    }
+
+    const { data, error } = await supabase
+      .from('customers')
+      .select('*')
+      .or(`name.ilike.%${query}%,phone.ilike.%${query}%,email.ilike.%${query}%`)
+      .limit(10);
+
+    if (error) {
+      console.error('Error searching customers:', error);
+      throw new Error('Failed to search customers');
+    }
+
+    return data || [];
+  }
+
+  static async addCustomer(customerData: Partial<DatabaseCustomer>): Promise<DatabaseCustomer> {
+    const { data, error } = await supabase
+      .from('customers')
+      .insert([customerData])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding customer:', error);
+      throw new Error('Failed to add customer');
+    }
+
+    return data;
+  }
+
+  static async completeSale(
     userId: string,
     items: any[],
     subtotal: number,
     taxAmount: number,
     totalAmount: number,
     paymentMethod: string,
-    options: {
-      customerId?: string;
-      customerName?: string;
-      customerPhone?: string;
-      customerEmail?: string;
-      discountAmount?: number;
-      discountPercentage?: number;
-      amountReceived?: number;
-      changeAmount?: number;
-      saleNote?: string;
-      referenceNumber?: string;
-    } = {}
-  ) {
+    options: any = {}
+  ): Promise<string> {
     const { data, error } = await supabase.rpc('complete_sale', {
       p_user_id: userId,
       p_items: items,
@@ -99,115 +171,9 @@ export const SalesService = {
 
     if (error) {
       console.error('Error completing sale:', error);
-      throw error;
+      throw new Error('Failed to complete sale: ' + error.message);
     }
 
     return data;
-  },
-
-  // Get sales history with pagination
-  async getSalesHistory(limit: number = 50, offset: number = 0) {
-    const { data, error } = await supabase
-      .from('sales')
-      .select(`
-        *,
-        sale_items (
-          id,
-          product_id,
-          product_name,
-          product_sku,
-          quantity,
-          unit_price,
-          total_price,
-          tax_rate
-        )
-      `)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
-
-    if (error) {
-      console.error('Error fetching sales history:', error);
-      throw error;
-    }
-
-    return data as SaleWithItems[];
-  },
-
-  // Get a specific sale by ID
-  async getSaleById(saleId: string) {
-    const { data, error } = await supabase
-      .from('sales')
-      .select(`
-        *,
-        sale_items (
-          id,
-          product_id,
-          product_name,
-          product_sku,
-          quantity,
-          unit_price,
-          total_price,
-          tax_rate
-        )
-      `)
-      .eq('id', saleId)
-      .single();
-
-    if (error) {
-      console.error('Error fetching sale:', error);
-      throw error;
-    }
-
-    return data as SaleWithItems;
-  },
-
-  // Get customers
-  async getCustomers() {
-    const { data, error } = await supabase
-      .from('customers')
-      .select('*')
-      .eq('is_active', true)
-      .order('name');
-
-    if (error) {
-      console.error('Error fetching customers:', error);
-      throw error;
-    }
-
-    return data as DatabaseCustomer[];
-  },
-
-  // Search customers by name or phone
-  async searchCustomers(query: string) {
-    const { data, error } = await supabase
-      .from('customers')
-      .select('*')
-      .eq('is_active', true)
-      .or(`name.ilike.%${query}%,phone.ilike.%${query}%`)
-      .order('name')
-      .limit(10);
-
-    if (error) {
-      console.error('Error searching customers:', error);
-      throw error;
-    }
-
-    return data as DatabaseCustomer[];
-  },
-
-  // Add a new customer
-  async addCustomer(customer: Omit<DatabaseCustomer, 'id' | 'created_at' | 'updated_at' | 'loyalty_points' | 'total_purchases' | 'last_purchase_date'>) {
-    const { data, error } = await supabase
-      .from('customers')
-      .insert([customer])
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error adding customer:', error);
-      throw error;
-    }
-
-    return data as DatabaseCustomer;
   }
-};
+}

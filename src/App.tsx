@@ -2,9 +2,9 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/sonner';
-import { AuthProvider, useAuth } from '@/components/auth/AuthProvider';
-import { SecureLoginScreen } from '@/components/auth/SecureLoginScreen';
-import { SecurePOSLayout } from '@/components/layout/SecurePOSLayout';
+import { AdminOnlyAuthProvider, useAuth } from '@/components/auth/AdminOnlyAuthProvider';
+import { AdminLoginScreen } from '@/components/auth/AdminLoginScreen';
+import { RoleBasedPOSLayout } from '@/components/layout/RoleBasedPOSLayout';
 
 const queryClient = new QueryClient();
 
@@ -24,17 +24,17 @@ function AppContent() {
 
   // If no user or no profile, show login screen
   if (!user || !profile) {
-    return <SecureLoginScreen />;
+    return <AdminLoginScreen />;
   }
 
-  // If user is authenticated and has profile, show the POS system
-  return <SecurePOSLayout />;
+  // If user is authenticated and has profile, show the role-based POS system
+  return <RoleBasedPOSLayout />;
 }
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
+      <AdminOnlyAuthProvider>
         <Router>
           <div className="min-h-screen">
             <Routes>
@@ -43,7 +43,7 @@ function App() {
             <Toaster />
           </div>
         </Router>
-      </AuthProvider>
+      </AdminOnlyAuthProvider>
     </QueryClientProvider>
   );
 }
