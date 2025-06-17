@@ -714,6 +714,10 @@ export type Database = {
             }
         Returns: undefined
       }
+      get_current_user_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       update_product_stock: {
         Args:
           | Record<PropertyKey, never>
