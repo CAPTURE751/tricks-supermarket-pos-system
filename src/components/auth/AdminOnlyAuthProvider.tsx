@@ -52,7 +52,17 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
 
   const fetchProfile = async (userId: string) => {
     try {
-      console.log('Fetching profile for user:', userId);
+      console.log('🔍 Fetching profile for user:', userId);
+      console.log('🔍 Current session:', session);
+      
+      // Check if we can access the profiles table
+      const { data: testData, error: testError } = await supabase
+        .from('profiles')
+        .select('count')
+        .limit(1);
+      
+      console.log('🔍 Profiles table test query result:', { testData, testError });
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -60,35 +70,72 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
         .single();
 
       if (error) {
-        console.error('Error fetching profile:', error);
+        console.error('❌ Error fetching profile:', error);
+        console.log('❌ Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        
+        // If profile doesn't exist, create one
+        if (error.code === 'PGRST116') {
+          console.log('📝 Profile not found, creating one...');
+          const { data: newProfile, error: createError } = await supabase
+            .from('profiles')
+            .insert([{
+              id: userId,
+              name: 'System Administrator',
+              role: 'Admin',
+              branch_id: null,
+              pin: '1234',
+              is_active: true
+            }])
+            .select()
+            .single();
+            
+          if (createError) {
+            console.error('❌ Error creating profile:', createError);
+            toast.error('Failed to create user profile');
+            return null;
+          }
+          
+          console.log('✅ Profile created successfully:', newProfile);
+          return newProfile as UserProfile;
+        }
+        
         toast.error('Failed to load user profile');
         return null;
       }
 
-      console.log('Profile fetched successfully:', data);
+      console.log('✅ Profile fetched successfully:', data);
       return data as UserProfile;
     } catch (error) {
-      console.error('Error in fetchProfile:', error);
+      console.error('❌ Error in fetchProfile:', error);
       toast.error('An error occurred while loading profile');
       return null;
     }
   };
 
   useEffect(() => {
-    console.log('Setting up auth listener...');
+    console.log('🚀 Setting up auth listener...');
     
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.id);
+        console.log('🔄 Auth state changed:', event, session?.user?.id);
+        console.log('🔄 Full session object:', session);
+        
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
+          console.log('👤 User authenticated, fetching profile...');
           const userProfile = await fetchProfile(session.user.id);
           setProfile(userProfile);
           setIsLoading(false);
         } else {
+          console.log('👤 No user session, clearing profile...');
           setProfile(null);
           setIsLoading(false);
         }
@@ -97,16 +144,20 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Initial session check:', session?.user?.id);
+      console.log('🔍 Initial session check:', session?.user?.id);
+      console.log('🔍 Initial session object:', session);
+      
       setSession(session);
       setUser(session?.user ?? null);
       
       if (session?.user) {
+        console.log('👤 Found existing session, fetching profile...');
         fetchProfile(session.user.id).then(userProfile => {
           setProfile(userProfile);
           setIsLoading(false);
         });
       } else {
+        console.log('👤 No existing session found');
         setIsLoading(false);
       }
     });
@@ -116,23 +167,23 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
 
   const signIn = async (email: string, password: string) => {
     try {
-      console.log('Attempting sign in for:', email);
+      console.log('🔐 Attempting sign in for:', email);
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       
       if (error) {
-        console.error('Sign in error:', error);
+        console.error('❌ Sign in error:', error);
         toast.error(`Sign in failed: ${error.message}`);
       } else {
-        console.log('Sign in successful');
+        console.log('✅ Sign in successful');
         toast.success('Signed in successfully');
       }
       
       return { error };
     } catch (error: any) {
-      console.error('Unexpected sign in error:', error);
+      console.error('❌ Unexpected sign in error:', error);
       toast.error('An unexpected error occurred during sign in');
       return { error };
     }
@@ -157,7 +208,7 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
 
   const createInitialAdmin = async () => {
     try {
-      console.log('Creating initial admin user...');
+      console.log('🔧 Creating initial admin user...');
       
       // Create the admin user in auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -169,7 +220,7 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
       });
 
       if (authError) {
-        console.error('Auth error:', authError);
+        console.error('❌ Auth error:', authError);
         if (authError.message.includes('already registered')) {
           toast.error('Admin user already exists. Try logging in instead.');
         } else {
@@ -179,7 +230,7 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
       }
 
       if (authData.user) {
-        console.log('Auth user created, creating profile...');
+        console.log('✅ Auth user created, creating profile...');
         
         // Create the profile
         const { error: profileError } = await supabase
@@ -194,12 +245,12 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
           }]);
 
         if (profileError) {
-          console.error('Profile error:', profileError);
+          console.error('❌ Profile error:', profileError);
           toast.error(`Failed to create admin profile: ${profileError.message}`);
           return { error: profileError };
         }
 
-        console.log('Admin user created successfully');
+        console.log('✅ Admin user created successfully');
         toast.success('Initial admin user created successfully! You can now log in with admin@jefftricks.com');
         return { error: null };
       }
@@ -209,7 +260,7 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
       toast.error('Failed to create admin user');
       return { error };
     } catch (error: any) {
-      console.error('Unexpected error creating admin:', error);
+      console.error('❌ Unexpected error creating admin:', error);
       toast.error(`An unexpected error occurred: ${error.message}`);
       return { error };
     }
