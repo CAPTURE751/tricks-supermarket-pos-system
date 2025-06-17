@@ -5,83 +5,55 @@
 
 @layer base {
   :root {
-    --background: 0 0% 12%; /* #1E1E1E */
-    --foreground: 0 0% 88%; /* #E0E0E0 */
+    --background: 0 0% 96%; /* #F5F5F5 */
+    --foreground: 220 13% 18%; /* #1F2937 */
 
-    --card: 0 0% 15%;
-    --card-foreground: 0 0% 88%;
+    --card: 0 0% 100%; /* White cards */
+    --card-foreground: 220 13% 18%;
 
-    --popover: 0 0% 15%;
-    --popover-foreground: 0 0% 88%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 13% 18%;
 
-    --primary: 142 100% 39%; /* #00C853 - Bright Green */
+    --primary: 158 64% 52%; /* #10B981 - Green */
     --primary-foreground: 0 0% 98%;
 
-    --secondary: 0 0% 18%; /* #2E2E2E */
-    --secondary-foreground: 0 0% 88%;
+    --secondary: 220 14% 96%; /* Light gray */
+    --secondary-foreground: 220 13% 18%;
 
-    --muted: 0 0% 18%;
-    --muted-foreground: 0 0% 63.9%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
 
-    --accent: 45 100% 50%; /* #FFAB00 - Amber */
+    --accent: 43 96% 56%; /* #F59E0B - Amber */
     --accent-foreground: 0 0% 98%;
 
-    --destructive: 0 73% 51%; /* #D32F2F */
+    --destructive: 0 84% 60%; /* Red */
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 18%; /* #2E2E2E */
-    --input: 0 0% 18%;
-    --ring: 142 100% 39%;
+    --border: 220 13% 91%; /* Light border */
+    --input: 220 13% 91%;
+    --ring: 158 64% 52%; /* Green focus ring */
 
     --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 15%;
-    --sidebar-foreground: 0 0% 88%;
-    --sidebar-primary: 142 100% 39%;
+    --sidebar-background: 0 0% 100%; /* White sidebar */
+    --sidebar-foreground: 220 13% 18%;
+    --sidebar-primary: 158 64% 52%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 0 0% 18%;
-    --sidebar-accent-foreground: 0 0% 88%;
-    --sidebar-border: 0 0% 18%;
-    --sidebar-ring: 142 100% 39%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 220 13% 18%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 158 64% 52%;
+
+    /* Custom colors for the palette */
+    --blue: 213 94% 68%; /* #2563EB */
+    --highlight-blue: 199 89% 48%; /* #38BDF8 */
+    --highlight-orange: 20 90% 48%; /* #FB923C */
   }
 
   .dark {
-    --background: 0 0% 12%; /* #1E1E1E */
-    --foreground: 0 0% 88%; /* #E0E0E0 */
-
-    --card: 0 0% 15%;
-    --card-foreground: 0 0% 88%;
-
-    --popover: 0 0% 15%;
-    --popover-foreground: 0 0% 88%;
-
-    --primary: 142 100% 39%; /* #00C853 - Bright Green */
-    --primary-foreground: 0 0% 98%;
-
-    --secondary: 0 0% 18%; /* #2E2E2E */
-    --secondary-foreground: 0 0% 88%;
-
-    --muted: 0 0% 18%;
-    --muted-foreground: 0 0% 63.9%;
-
-    --accent: 45 100% 50%; /* #FFAB00 - Amber */
-    --accent-foreground: 0 0% 98%;
-
-    --destructive: 0 73% 51%; /* #D32F2F */
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 0 0% 18%; /* #2E2E2E */
-    --input: 0 0% 18%;
-    --ring: 142 100% 39%;
-
-    --sidebar-background: 0 0% 15%;
-    --sidebar-foreground: 0 0% 88%;
-    --sidebar-primary: 142 100% 39%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 0 0% 18%;
-    --sidebar-accent-foreground: 0 0% 88%;
-    --sidebar-border: 0 0% 18%;
-    --sidebar-ring: 142 100% 39%;
+    --background: 0 0% 96%; /* Keep light theme */
+    --foreground: 220 13% 18%;
+    /* Same as light theme for bright modern look */
   }
 }
 
@@ -91,29 +63,80 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
   }
 }
 
 /* Touch-friendly elements */
 .touch-button {
-  @apply rounded-xl px-6 py-4 text-lg font-semibold transition-transform active:scale-95;
+  @apply rounded-xl px-8 py-4 text-lg font-semibold transition-all duration-200 active:scale-95 shadow-sm hover:shadow-md;
+  min-height: 48px;
+  min-width: 48px;
 }
 
-/* Improved scrollbars for dark theme */
+.touch-input {
+  @apply rounded-xl px-4 py-3 text-base border-2 transition-all duration-200 focus:scale-[1.02];
+  min-height: 48px;
+}
+
+/* Modern card styles */
+.modern-card {
+  @apply bg-white rounded-2xl shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200;
+}
+
+/* Gradient backgrounds */
+.gradient-primary {
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+}
+
+.gradient-accent {
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+}
+
+.gradient-blue {
+  background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+}
+
+/* Improved scrollbars for modern look */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #2E2E2E;
+  background: #F5F5F5;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #555;
-  border-radius: 4px;
+  background: #D1D5DB;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #666;
+  background: #9CA3AF;
+}
+
+/* Modern shadows */
+.shadow-modern {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+.shadow-modern-lg {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+}
+
+/* Animation for modern feel */
+.animate-fade-in-up {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface DatabaseSale {
@@ -71,8 +70,7 @@ export class SalesService {
         receipt_number,
         sale_date,
         created_at,
-        updated_at,
-        sale_items (*)
+        updated_at
       `)
       .order('created_at', { ascending: false });
 
@@ -81,32 +79,47 @@ export class SalesService {
       throw new Error('Failed to fetch sales history');
     }
 
-    // Transform the data to match the expected interface
-    return (sales || []).map(sale => ({
-      id: sale.id,
-      cashier_id: sale.cashier_id,
-      customer_id: sale.customer_id,
-      customer_name: null, // Not available in current schema
-      customer_phone: null, // Not available in current schema
-      customer_email: null, // Not available in current schema
-      subtotal: sale.total_amount - (sale.tax_amount || 0), // Calculate from available data
-      discount_amount: 0, // Not available in current schema
-      discount_percentage: 0, // Not available in current schema
-      tax_amount: sale.tax_amount || 0,
-      total_amount: sale.total_amount,
-      payment_method: sale.payment_method || 'cash',
-      amount_received: sale.total_amount, // Assume full payment
-      change_amount: 0, // Not available in current schema
-      sale_note: null, // Not available in current schema
-      receipt_number: sale.receipt_number || '',
-      sale_date: sale.sale_date || sale.created_at,
-      branch_id: null, // Not available in current schema
-      session_id: null, // Not available in current schema
-      status: 'completed', // Default status
-      created_at: sale.created_at,
-      updated_at: sale.updated_at,
-      sale_items: sale.sale_items || []
-    }));
+    // Fetch sale items separately for each sale
+    const salesWithItems: SaleWithItems[] = [];
+    
+    for (const sale of sales || []) {
+      const { data: saleItems, error: itemsError } = await supabase
+        .from('sale_items')
+        .select('*')
+        .eq('sale_id', sale.id);
+
+      if (itemsError) {
+        console.error('Error fetching sale items:', itemsError);
+      }
+
+      salesWithItems.push({
+        id: sale.id,
+        cashier_id: sale.cashier_id,
+        customer_id: sale.customer_id,
+        customer_name: null,
+        customer_phone: null,
+        customer_email: null,
+        subtotal: sale.total_amount - (sale.tax_amount || 0),
+        discount_amount: 0,
+        discount_percentage: 0,
+        tax_amount: sale.tax_amount || 0,
+        total_amount: sale.total_amount,
+        payment_method: sale.payment_method || 'cash',
+        amount_received: sale.total_amount,
+        change_amount: 0,
+        sale_note: null,
+        receipt_number: sale.receipt_number || '',
+        sale_date: sale.sale_date || sale.created_at,
+        branch_id: null,
+        session_id: null,
+        status: 'completed',
+        created_at: sale.created_at,
+        updated_at: sale.updated_at,
+        sale_items: saleItems || []
+      });
+    }
+
+    return salesWithItems;
   }
 
   static async getSaleById(id: string): Promise<SaleWithItems> {
@@ -122,8 +135,7 @@ export class SalesService {
         receipt_number,
         sale_date,
         created_at,
-        updated_at,
-        sale_items (*)
+        updated_at
       `)
       .eq('id', id)
       .single();
@@ -133,7 +145,16 @@ export class SalesService {
       throw new Error('Failed to fetch sale');
     }
 
-    // Transform the data to match the expected interface
+    // Fetch sale items separately
+    const { data: saleItems, error: itemsError } = await supabase
+      .from('sale_items')
+      .select('*')
+      .eq('sale_id', id);
+
+    if (itemsError) {
+      console.error('Error fetching sale items:', itemsError);
+    }
+
     return {
       id: sale.id,
       cashier_id: sale.cashier_id,
@@ -157,7 +178,7 @@ export class SalesService {
       status: 'completed',
       created_at: sale.created_at,
       updated_at: sale.updated_at,
-      sale_items: sale.sale_items || []
+      sale_items: saleItems || []
     };
   }
 
@@ -218,7 +239,6 @@ export class SalesService {
     paymentMethod: string,
     options: any = {}
   ): Promise<string> {
-    // For now, create a basic sale record with available fields
     const { data, error } = await supabase
       .from('sales')
       .insert([{
@@ -238,7 +258,6 @@ export class SalesService {
       throw new Error('Failed to complete sale: ' + error.message);
     }
 
-    // Add sale items
     if (data && items.length > 0) {
       const saleItems = items.map(item => ({
         sale_id: data.id,
