@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -51,10 +50,9 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchProfile = async (userId: string, currentSession?: Session) => {
+  const fetchProfile = async (userId: string) => {
     try {
       console.log('🔍 Fetching profile for user:', userId);
-      console.log('🔍 Using session:', currentSession ? 'Available' : 'Not available');
       
       const { data, error } = await supabase
         .from('profiles')
@@ -121,7 +119,7 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
         
         if (session?.user) {
           console.log('👤 User authenticated, fetching profile...');
-          const userProfile = await fetchProfile(session.user.id, session);
+          const userProfile = await fetchProfile(session.user.id);
           if (mounted) {
             setProfile(userProfile);
             setIsLoading(false);
@@ -157,7 +155,7 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
         
         if (session?.user) {
           console.log('👤 Found existing session, fetching profile...');
-          const userProfile = await fetchProfile(session.user.id, session);
+          const userProfile = await fetchProfile(session.user.id);
           if (mounted) {
             setProfile(userProfile);
             setIsLoading(false);
