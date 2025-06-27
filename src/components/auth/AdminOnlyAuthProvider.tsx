@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -107,34 +108,6 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
     
     let mounted = true;
 
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('🔄 Auth state changed:', event, session?.user?.id);
-        
-        if (!mounted) return;
-        
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          console.log('👤 User authenticated, fetching profile...');
-          const userProfile = await fetchProfile(session.user.id);
-          if (mounted) {
-            setProfile(userProfile);
-            setIsLoading(false);
-          }
-        } else {
-          console.log('👤 No user session, clearing profile...');
-          if (mounted) {
-            setProfile(null);
-            setIsLoading(false);
-          }
-        }
-      }
-    );
-
-    // Check for existing session immediately
     const initializeAuth = async () => {
       try {
         console.log('🔍 Checking for existing session...');
@@ -142,7 +115,12 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
         
         if (error) {
           console.error('❌ Error getting session:', error);
-          if (mounted) setIsLoading(false);
+          if (mounted) {
+            setUser(null);
+            setSession(null);
+            setProfile(null);
+            setIsLoading(false);
+          }
           return;
         }
         
@@ -158,18 +136,53 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
           const userProfile = await fetchProfile(session.user.id);
           if (mounted) {
             setProfile(userProfile);
-            setIsLoading(false);
           }
-        } else {
-          console.log('👤 No existing session found');
-          if (mounted) setIsLoading(false);
+        }
+        
+        if (mounted) {
+          setIsLoading(false);
         }
       } catch (error) {
         console.error('❌ Error initializing auth:', error);
-        if (mounted) setIsLoading(false);
+        if (mounted) {
+          setUser(null);
+          setSession(null);
+          setProfile(null);
+          setIsLoading(false);
+        }
       }
     };
 
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('🔄 Auth state changed:', event, session?.user?.id);
+        
+        if (!mounted) return;
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user && event !== 'SIGNED_OUT') {
+          console.log('👤 User authenticated, fetching profile...');
+          const userProfile = await fetchProfile(session.user.id);
+          if (mounted) {
+            setProfile(userProfile);
+          }
+        } else {
+          console.log('👤 No user session, clearing profile...');
+          if (mounted) {
+            setProfile(null);
+          }
+        }
+        
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    );
+
+    // Initialize auth immediately
     initializeAuth();
 
     return () => {
@@ -195,7 +208,7 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
       } else {
         console.log('✅ Sign in successful');
         toast.success('Signed in successfully');
-        // Don't set loading to false here, let the auth state change handle it
+        // Loading state will be handled by auth state change
       }
       
       return { error };
@@ -216,9 +229,9 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
       } else {
         toast.success('Signed out successfully');
       }
-      setIsLoading(false);
     } catch (error) {
       toast.error('Error signing out');
+    } finally {
       setIsLoading(false);
     }
   };
