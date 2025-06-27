@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/sonner';
 import { AdminOnlyAuthProvider, useAuth } from '@/components/auth/AdminOnlyAuthProvider';
 import { AdminLoginScreen } from '@/components/auth/AdminLoginScreen';
+import { ForgotPasswordScreen } from '@/components/auth/ForgotPasswordScreen';
+import { ResetPasswordScreen } from '@/components/auth/ResetPasswordScreen';
 import { RoleBasedPOSLayout } from '@/components/layout/RoleBasedPOSLayout';
 
 const queryClient = new QueryClient();
@@ -22,13 +24,20 @@ function AppContent() {
     );
   }
 
-  // If no user or no profile, show login screen
-  if (!user || !profile) {
-    return <AdminLoginScreen />;
-  }
-
-  // If user is authenticated and has profile, show the role-based POS system
-  return <RoleBasedPOSLayout />;
+  return (
+    <Routes>
+      <Route path="/login" element={<AdminLoginScreen />} />
+      <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
+      <Route path="/reset-password" element={<ResetPasswordScreen />} />
+      <Route 
+        path="/*" 
+        element={
+          // If no user or no profile, show login screen
+          !user || !profile ? <AdminLoginScreen /> : <RoleBasedPOSLayout />
+        } 
+      />
+    </Routes>
+  );
 }
 
 function App() {
@@ -37,9 +46,7 @@ function App() {
       <AdminOnlyAuthProvider>
         <Router>
           <div className="min-h-screen">
-            <Routes>
-              <Route path="/*" element={<AppContent />} />
-            </Routes>
+            <AppContent />
             <Toaster />
           </div>
         </Router>
