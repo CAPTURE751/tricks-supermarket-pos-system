@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -62,33 +63,6 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
 
       if (error) {
         console.error('❌ Error fetching profile:', error);
-        
-        // If profile doesn't exist, create one
-        if (error.code === 'PGRST116') {
-          console.log('📝 Profile not found, creating one...');
-          const { data: newProfile, error: createError } = await supabase
-            .from('profiles')
-            .insert([{
-              id: userId,
-              name: 'System Administrator',
-              role: 'Admin',
-              branch_id: null,
-              pin: '1234',
-              is_active: true
-            }])
-            .select()
-            .single();
-            
-          if (createError) {
-            console.error('❌ Error creating profile:', createError);
-            toast.error('Failed to create user profile');
-            return null;
-          }
-          
-          console.log('✅ Profile created successfully:', newProfile);
-          return newProfile as UserProfile;
-        }
-        
         toast.error('Failed to load user profile');
         return null;
       }
@@ -135,11 +109,11 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
           const userProfile = await fetchProfile(session.user.id);
           if (mounted) {
             setProfile(userProfile);
-            setIsLoading(false); // Set loading to false after profile is fetched
+            setIsLoading(false);
           }
         } else {
           if (mounted) {
-            setIsLoading(false); // Set loading to false if no session
+            setIsLoading(false);
           }
         }
       } catch (error) {
@@ -165,7 +139,6 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
         
         if (session?.user && event !== 'SIGNED_OUT') {
           console.log('👤 User authenticated, fetching profile...');
-          // Use setTimeout to prevent blocking the auth state change
           setTimeout(async () => {
             if (mounted) {
               const userProfile = await fetchProfile(session.user.id);
@@ -183,7 +156,6 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
       }
     );
 
-    // Initialize auth immediately
     initializeAuth();
 
     return () => {
@@ -209,7 +181,6 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
       } else {
         console.log('✅ Sign in successful');
         toast.success('Signed in successfully');
-        // Loading state will be handled by auth state change
       }
       
       return { error };
@@ -246,12 +217,16 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
       console.log('🔧 Creating initial admin user...');
       setIsLoading(true);
       
-      // Create the admin user in auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: 'admin@jefftricks.com',
         password: 'Admin123!',
         options: {
-          emailRedirectTo: window.location.origin
+          emailRedirectTo: window.location.origin,
+          data: {
+            name: 'System Administrator', 
+            role: 'Admin',
+            pin: '1234'
+          }
         }
       });
 
@@ -267,27 +242,6 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
       }
 
       if (authData.user) {
-        console.log('✅ Auth user created, creating profile...');
-        
-        // Create the profile
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([{
-            id: authData.user.id,
-            name: 'System Administrator',
-            role: 'Admin',
-            branch_id: null,
-            pin: '1234',
-            is_active: true
-          }]);
-
-        if (profileError) {
-          console.error('❌ Profile error:', profileError);
-          toast.error(`Failed to create admin profile: ${profileError.message}`);
-          setIsLoading(false);
-          return { error: profileError };
-        }
-
         console.log('✅ Admin user created successfully');
         toast.success('Initial admin user created successfully! You can now log in with admin@jefftricks.com');
         setIsLoading(false);
@@ -316,18 +270,23 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
     pin?: string;
   }) => {
     try {
-      // Only admins can create users
       if (profile?.role !== 'Admin') {
         const error = new Error('Only administrators can create users');
         toast.error(error.message);
         return { error };
       }
 
-      // Create auth user
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,
-        email_confirm: true
+        options: {
+          emailRedirectTo: window.location.origin,
+          data: {
+            name: userData.name,
+            role: userData.role,
+            pin: userData.pin || '0000'
+          }
+        }
       });
 
       if (authError) {
@@ -335,26 +294,7 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
         return { error: authError };
       }
 
-      // Create profile
       if (authData.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([{
-            id: authData.user.id,
-            name: userData.name,
-            role: userData.role,
-            branch_id: userData.branch_id || null,
-            pin: userData.pin || null,
-            is_active: true
-          }]);
-
-        if (profileError) {
-          // Clean up auth user if profile creation fails
-          await supabase.auth.admin.deleteUser(authData.user.id);
-          toast.error('Failed to create user profile');
-          return { error: profileError };
-        }
-
         toast.success('User created successfully');
         return { error: null };
       }
