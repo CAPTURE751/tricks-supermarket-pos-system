@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -136,11 +135,12 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
           const userProfile = await fetchProfile(session.user.id);
           if (mounted) {
             setProfile(userProfile);
+            setIsLoading(false); // Set loading to false after profile is fetched
           }
-        }
-        
-        if (mounted) {
-          setIsLoading(false);
+        } else {
+          if (mounted) {
+            setIsLoading(false); // Set loading to false if no session
+          }
         }
       } catch (error) {
         console.error('❌ Error initializing auth:', error);
@@ -165,19 +165,20 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
         
         if (session?.user && event !== 'SIGNED_OUT') {
           console.log('👤 User authenticated, fetching profile...');
-          const userProfile = await fetchProfile(session.user.id);
-          if (mounted) {
-            setProfile(userProfile);
-          }
+          // Use setTimeout to prevent blocking the auth state change
+          setTimeout(async () => {
+            if (mounted) {
+              const userProfile = await fetchProfile(session.user.id);
+              setProfile(userProfile);
+              setIsLoading(false);
+            }
+          }, 0);
         } else {
           console.log('👤 No user session, clearing profile...');
           if (mounted) {
             setProfile(null);
+            setIsLoading(false);
           }
-        }
-        
-        if (mounted) {
-          setIsLoading(false);
         }
       }
     );
