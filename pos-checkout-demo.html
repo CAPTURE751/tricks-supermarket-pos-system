@@ -1,0 +1,443 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POS Checkout Demo - Jeff Tricks Supermarket</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        .cart-container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .cart-heading {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .cart-item {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .item-details {
+            flex: 1;
+        }
+
+        .item-name {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .item-quantity {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .item-price {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .subtotal {
+            display: flex;
+            justify-content: space-between;
+            padding: 16px 0;
+            font-size: 18px;
+            font-weight: bold;
+            border-top: 2px solid #eee;
+            margin-top: 12px;
+        }
+
+        .complete-sale-btn {
+            width: 100%;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 16px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background-color 0.2s;
+        }
+
+        .complete-sale-btn:hover {
+            background-color: #218838;
+        }
+
+        /* Modal Styles */
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+
+        .modal-backdrop.show {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .receipt-modal {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            max-width: 300px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .receipt-content {
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .receipt-logo {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .receipt-logo img {
+            max-width: 100px;
+            height: auto;
+        }
+
+        .receipt-header {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .business-name {
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .branch-name {
+            margin-bottom: 8px;
+        }
+
+        .receipt-info {
+            margin-bottom: 16px;
+        }
+
+        .receipt-info div {
+            margin-bottom: 2px;
+        }
+
+        .items-table {
+            width: 100%;
+            margin-bottom: 16px;
+            border-collapse: collapse;
+        }
+
+        .items-table th,
+        .items-table td {
+            text-align: left;
+            padding: 2px 0;
+        }
+
+        .items-table th {
+            border-bottom: 1px solid #333;
+            font-weight: bold;
+        }
+
+        .items-table .qty-col {
+            text-align: center;
+            width: 30px;
+        }
+
+        .items-table .price-col,
+        .items-table .total-col {
+            text-align: right;
+            width: 60px;
+        }
+
+        .receipt-totals {
+            border-top: 1px solid #333;
+            padding-top: 8px;
+            margin-bottom: 16px;
+        }
+
+        .total-line {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+
+        .total-line.final-total {
+            font-weight: bold;
+            border-top: 1px solid #333;
+            padding-top: 4px;
+            margin-top: 4px;
+        }
+
+        .payment-info {
+            margin-bottom: 16px;
+        }
+
+        .receipt-footer {
+            text-align: center;
+            font-weight: bold;
+            margin-top: 16px;
+            border-top: 1px solid #333;
+            padding-top: 8px;
+        }
+
+        .modal-buttons {
+            padding: 16px;
+            border-top: 1px solid #eee;
+        }
+
+        .modal-btn {
+            width: 100%;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 12px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 8px;
+            transition: background-color 0.2s;
+        }
+
+        .modal-btn:hover {
+            background-color: #218838;
+        }
+
+        .modal-btn:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Print Styles */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            
+            .receipt-content,
+            .receipt-content * {
+                visibility: visible;
+            }
+            
+            .receipt-content {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 80mm;
+                padding: 0;
+            }
+            
+            .modal-backdrop,
+            .modal-buttons {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Cart Container -->
+    <div class="cart-container">
+        <h1 class="cart-heading">Shopping Cart</h1>
+        
+        <div class="cart-item">
+            <div class="item-details">
+                <div class="item-name">Bread Loaf</div>
+                <div class="item-quantity">×2 @ KSh 60.00</div>
+            </div>
+            <div class="item-price">KSh 120.00</div>
+        </div>
+        
+        <div class="subtotal">
+            <span>Subtotal:</span>
+            <span>KSh 120.00</span>
+        </div>
+        
+        <button class="complete-sale-btn" onclick="showReceipt()">
+            Complete Sale – KSh {{totalAmount}}
+        </button>
+    </div>
+
+    <!-- Modal Receipt -->
+    <div class="modal-backdrop" id="receiptModal">
+        <div class="receipt-modal">
+            <div class="receipt-content" id="receiptContent">
+                <div class="receipt-logo">
+                    <img src="logo.png" alt="Logo" style="max-width: 100px;">
+                </div>
+                
+                <div class="receipt-header">
+                    <div class="business-name">JEFF TRICKS SUPERMARKET</div>
+                    <div class="branch-name">Branch: Nairobi CBD</div>
+                </div>
+                
+                <div class="receipt-info">
+                    <div>Receipt No.: {{receiptNumber}}</div>
+                    <div id="receiptDateTime"></div>
+                    <div>Cashier: John Doe</div>
+                </div>
+                
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th class="qty-col">Qty</th>
+                            <th class="price-col">Price</th>
+                            <th class="total-col">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Bread Loaf</td>
+                            <td class="qty-col">2</td>
+                            <td class="price-col">60.00</td>
+                            <td class="total-col">120.00</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <div class="receipt-totals">
+                    <div class="total-line">
+                        <span>Subtotal:</span>
+                        <span>KSh {{subtotal}}</span>
+                    </div>
+                    <div class="total-line">
+                        <span>VAT (16%):</span>
+                        <span>KSh {{vat}}</span>
+                    </div>
+                    <div class="total-line">
+                        <span>Discount:</span>
+                        <span>KSh 0.00</span>
+                    </div>
+                    <div class="total-line final-total">
+                        <span>Total:</span>
+                        <span>KSh {{totalAmount}}</span>
+                    </div>
+                </div>
+                
+                <div class="payment-info">
+                    <div>Payment Method: M-Pesa</div>
+                    <div>Reference No.: 234567</div>
+                </div>
+                
+                <div class="receipt-footer">
+                    Thank you for shopping!
+                </div>
+            </div>
+            
+            <div class="modal-buttons">
+                <button class="modal-btn" onclick="printReceipt()">Print Receipt</button>
+                <button class="modal-btn" onclick="downloadPDF()">Download PDF</button>
+                <button class="modal-btn" onclick="closeReceipt()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables for dynamic content
+        const receiptNumber = 'RECEIPT-001234';
+        const subtotal = '120.00';
+        const vat = '19.20';
+        const totalAmount = '139.20';
+
+        function showReceipt() {
+            // Insert current timestamp
+            const now = new Date();
+            const dateTime = now.toLocaleString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            
+            document.getElementById('receiptDateTime').textContent = `Date: ${dateTime}`;
+            
+            // Replace template variables with actual values
+            const receiptContent = document.getElementById('receiptContent');
+            let html = receiptContent.innerHTML;
+            html = html.replace(/\{\{receiptNumber\}\}/g, receiptNumber);
+            html = html.replace(/\{\{subtotal\}\}/g, subtotal);
+            html = html.replace(/\{\{vat\}\}/g, vat);
+            html = html.replace(/\{\{totalAmount\}\}/g, totalAmount);
+            receiptContent.innerHTML = html;
+            
+            // Also update the button text
+            const completeBtn = document.querySelector('.complete-sale-btn');
+            completeBtn.textContent = `Complete Sale – KSh ${totalAmount}`;
+            
+            // Show modal
+            document.getElementById('receiptModal').classList.add('show');
+        }
+
+        function printReceipt() {
+            window.print();
+        }
+
+        function downloadPDF() {
+            const element = document.getElementById('receiptContent');
+            const opt = {
+                margin: 0.2,
+                filename: receiptNumber + '.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { 
+                    unit: 'in', 
+                    format: [3.15, 8], // 80mm width
+                    orientation: 'portrait' 
+                }
+            };
+            
+            html2pdf().set(opt).from(element).save();
+        }
+
+        function closeReceipt() {
+            document.getElementById('receiptModal').classList.remove('show');
+            alert('Sale completed successfully. Cart has been reset.');
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('receiptModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeReceipt();
+            }
+        });
+    </script>
+</body>
+</html>
