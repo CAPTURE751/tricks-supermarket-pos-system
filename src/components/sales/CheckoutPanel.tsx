@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -67,40 +66,10 @@ export const CheckoutPanel = ({ items, user, customer, saleNote, onCheckoutCompl
     setIsProcessing(true);
 
     try {
-      // Prepare items for the database with correct structure
-      const saleItems = items.map(item => ({
-        product_id: item.id,
-        name: item.name,
-        sku: item.sku || item.id,
-        quantity: item.quantity,
-        price: item.price,
-        tax_rate: item.category === 'Beverages' || item.category === 'Electronics' ? 16 : 0
-      }));
+      console.log('Completing sale with payment method:', paymentMethod);
 
-      console.log('Completing sale with items:', saleItems);
-      console.log('Sale totals:', { subtotal, taxAmount, total });
-
-      // Complete the sale
-      await completeSale(
-        user.id,
-        saleItems,
-        subtotal,
-        taxAmount,
-        total,
-        paymentMethod,
-        {
-          customerId: customer?.id,
-          customerName: customer?.name,
-          customerPhone: customer?.phone,
-          customerEmail: customer?.email,
-          discountAmount,
-          discountPercentage,
-          amountReceived: paymentMethod === 'cash' ? received : total,
-          changeAmount: paymentMethod === 'cash' ? change : 0,
-          saleNote: saleNote || null,
-          referenceNumber: referenceNumber || null
-        }
-      );
+      // Complete the sale using the updated completeSale function
+      await completeSale(paymentMethod);
 
       // Reset form and clear cart
       setAmountReceived('');
