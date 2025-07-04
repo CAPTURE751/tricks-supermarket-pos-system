@@ -1,130 +1,153 @@
 
-import { useState, useEffect } from 'react';
-import { SalesService, DatabaseSale, DatabaseCustomer, SaleWithItems } from '@/services/sales-service';
+import { useState, useCallback } from 'react';
+import { useAuth } from '@/components/auth/AdminOnlyAuthProvider';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useAuth } from '@/components/auth/AuthProvider';
+
+export interface Product {
+  id: string;
+  name: string;
+  price: number;
+  sku: string;
+  stock_quantity: number;
+  barcode?: string;
+  category?: string;
+  tax_rate: number;
+}
+
+export interface CartItem extends Product {
+  quantity: number;
+  total: number;
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  loyalty_points: number;
+}
+
+export interface Sale {
+  id: string;
+  items: CartItem[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  customer?: Customer;
+  payment_method: string;
+  timestamp: string;
+  receipt_number: string;
+}
 
 export const useSales = () => {
-  const [salesHistory, setSalesHistory] = useState<SaleWithItems[]>([]);
-  const [customers, setCustomers] = useState<DatabaseCustomer[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { user } = useAuth();
+  const { profile } = useAuth();
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
-  const fetchSalesHistory = async () => {
-    if (!user) return;
-    
-    try {
-      setLoading(true);
-      const data = await SalesService.getSalesHistory();
-      setSalesHistory(data);
-      setError(null);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch sales history';
-      setError(errorMessage);
-      toast.error('Failed to load sales history');
-      console.error('Error fetching sales history:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const addToCart = useCallback((product: Product, quantity: number = 1) => {
+    setCart(prev => {
+      const existingItem = prev.find(item => item.id === product.id);
+      if (existingItem) {
+        return prev.map(item =>
+          item.id === product.id
+            ? { ...item, quantity: item.quantity + quantity, total: (item.quantity + quantity) * item.price }
+            : item
+        );
+      }
+      return [...prev, { ...product, quantity, total: quantity * product.price }];
+    });
+  }, []);
 
-  const fetchCustomers = async () => {
-    if (!user) return;
-    
-    try {
-      const data = await SalesService.getCustomers();
-      setCustomers(data);
-    } catch (err) {
-      console.error('Error fetching customers:', err);
-      toast.error('Failed to load customers');
-    }
-  };
+  const removeFromCart = useCallback((productId: string) => {
+    setCart(prev => prev.filter(item => item.id !== productId));
+  }, []);
 
-  const completeSale = async (
-    userId: string,
-    items: any[],
-    subtotal: number,
-    taxAmount: number,
-    totalAmount: number,
-    paymentMethod: string,
-    options: any = {}
-  ) => {
-    if (!user) {
-      toast.error('You must be logged in to complete a sale');
-      throw new Error('User not authenticated');
+  const updateQuantity = useCallback((productId: string, quantity: number) => {
+    if (quantity <= 0) {
+      removeFromCart(productId);
+      return;
     }
     
+    setCart(prev => prev.map(item =>
+      item.id === productId
+        ? { ...item, quantity, total: quantity * item.price }
+        : item
+    ));
+  }, [removeFromCart]);
+
+  const clearCart = useCallback(() => {
+    setCart([]);
+    setSelectedCustomer(null);
+  }, []);
+
+  const completeSale = useCallback(async (paymentMethod: string) => {
+    if (!profile) {
+      toast.error('User not authenticated');
+      return null;
+    }
+
+    if (cart.length === 0) {
+      toast.error('Cart is empty');
+      return null;
+    }
+
     try {
-      const saleId = await SalesService.completeSale(
-        user.id, // Use authenticated user ID
-        items,
-        subtotal,
-        taxAmount,
-        totalAmount,
-        paymentMethod,
-        options
-      );
-      
-      // Refresh sales history to show the new sale
-      await fetchSalesHistory();
-      
+      const subtotal = cart.reduce((sum, item) => sum + item.total, 0);
+      const taxAmount = cart.reduce((sum, item) => sum + (item.total * item.tax_rate / 100), 0);
+      const total = subtotal + taxAmount;
+
+      const saleItems = cart.map(item => ({
+        product_id: item.id,
+        name: item.name,
+        sku: item.sku,
+        quantity: item.quantity,
+        price: item.price,
+        tax_rate: item.tax_rate
+      }));
+
+      const { data: saleId, error } = await supabase.rpc('complete_sale', {
+        p_user_id: profile.id,
+        p_items: saleItems,
+        p_subtotal: subtotal,
+        p_tax_amount: taxAmount,
+        p_total_amount: total,
+        p_payment_method: paymentMethod,
+        p_customer_id: selectedCustomer?.id || null,
+        p_customer_name: selectedCustomer?.name || null,
+        p_customer_phone: selectedCustomer?.phone || null,
+        p_customer_email: selectedCustomer?.email || null
+      });
+
+      if (error) {
+        console.error('Sale completion error:', error);
+        toast.error('Failed to complete sale');
+        return null;
+      }
+
       toast.success('Sale completed successfully');
+      clearCart();
       return saleId;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to complete sale';
-      toast.error(errorMessage);
-      throw err;
+    } catch (error) {
+      console.error('Unexpected error completing sale:', error);
+      toast.error('An unexpected error occurred');
+      return null;
     }
-  };
+  }, [profile, cart, selectedCustomer, clearCart]);
 
-  const searchCustomers = async (query: string) => {
-    if (!user) return [];
-    
-    try {
-      const data = await SalesService.searchCustomers(query);
-      return data;
-    } catch (err) {
-      console.error('Error searching customers:', err);
-      toast.error('Failed to search customers');
-      return [];
-    }
-  };
-
-  const addCustomer = async (customerData: any) => {
-    if (!user) {
-      toast.error('You must be logged in to add customers');
-      throw new Error('User not authenticated');
-    }
-    
-    try {
-      const newCustomer = await SalesService.addCustomer(customerData);
-      setCustomers(prev => [...prev, newCustomer]);
-      toast.success('Customer added successfully');
-      return newCustomer;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to add customer';
-      toast.error(errorMessage);
-      throw err;
-    }
-  };
-
-  useEffect(() => {
-    if (user) {
-      fetchSalesHistory();
-      fetchCustomers();
-    }
-  }, [user]);
+  const cartTotal = cart.reduce((sum, item) => sum + item.total, 0);
+  const cartTax = cart.reduce((sum, item) => sum + (item.total * item.tax_rate / 100), 0);
 
   return {
-    salesHistory,
-    customers,
-    loading,
-    error,
-    completeSale,
-    searchCustomers,
-    addCustomer,
-    refetchSalesHistory: fetchSalesHistory,
-    refetchCustomers: fetchCustomers
+    cart,
+    selectedCustomer,
+    cartTotal,
+    cartTax,
+    addToCart,
+    removeFromCart,
+    updateQuantity,
+    clearCart,
+    setSelectedCustomer,
+    completeSale
   };
 };

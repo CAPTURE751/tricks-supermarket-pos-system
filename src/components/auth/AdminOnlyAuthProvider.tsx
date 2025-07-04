@@ -31,6 +31,7 @@ interface AuthContextType {
   }) => Promise<{ error: any }>;
   canAccess: (module: string) => boolean;
   createInitialAdmin: () => Promise<{ error: any }>;
+  loginWithPin: (pin: string) => Promise<{ error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -44,6 +45,18 @@ const rolePermissions = {
   'Stock Controller': ['inventory', 'purchases'],
   'Guest': ['sales']
 };
+
+// Demo users for PIN login
+const demoUsers: UserProfile[] = [
+  {
+    id: 'demo-admin-12345',
+    name: 'Demo Admin',
+    role: 'Admin',
+    branch_id: null,
+    pin: '12345',
+    is_active: true
+  }
+];
 
 export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -192,6 +205,60 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
     }
   };
 
+  const loginWithPin = async (pin: string) => {
+    try {
+      console.log('🔐 Attempting PIN login:', pin);
+      setIsLoading(true);
+      
+      // Check for demo user
+      const demoUser = demoUsers.find(u => u.pin === pin);
+      if (demoUser) {
+        console.log('✅ Demo user found:', demoUser.name);
+        setProfile(demoUser);
+        setUser({ id: demoUser.id } as User);
+        setSession({ user: { id: demoUser.id } } as Session);
+        setIsLoading(false);
+        toast.success(`Welcome ${demoUser.name}!`);
+        return { error: null };
+      }
+
+      // If not a demo user, try to find in database
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('pin', pin)
+        .eq('is_active', true);
+
+      if (error) {
+        console.error('❌ PIN login error:', error);
+        toast.error('Invalid PIN');
+        setIsLoading(false);
+        return { error };
+      }
+
+      if (!profiles || profiles.length === 0) {
+        console.log('❌ No user found with PIN:', pin);
+        toast.error('Invalid PIN');
+        setIsLoading(false);
+        return { error: new Error('Invalid PIN') };
+      }
+
+      const userProfile = profiles[0] as UserProfile;
+      console.log('✅ PIN login successful:', userProfile.name);
+      setProfile(userProfile);
+      setUser({ id: userProfile.id } as User);
+      setSession({ user: { id: userProfile.id } } as Session);
+      setIsLoading(false);
+      toast.success(`Welcome ${userProfile.name}!`);
+      return { error: null };
+    } catch (error: any) {
+      console.error('❌ Unexpected PIN login error:', error);
+      toast.error('An unexpected error occurred during login');
+      setIsLoading(false);
+      return { error };
+    }
+  };
+
   const signOut = async () => {
     try {
       setIsLoading(true);
@@ -199,6 +266,9 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
       if (error) {
         toast.error(error.message);
       } else {
+        setUser(null);
+        setSession(null);
+        setProfile(null);
         toast.success('Signed out successfully');
       }
     } catch (error) {
@@ -322,7 +392,8 @@ export const AdminOnlyAuthProvider = ({ children }: { children: ReactNode }) => 
       verifyPin,
       createUser,
       canAccess,
-      createInitialAdmin
+      createInitialAdmin,
+      loginWithPin
     }}>
       {children}
     </AuthContext.Provider>
