@@ -111,7 +111,7 @@ export const RoleBasedPOSLayout = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header user={user} onSignOut={signOut} />
+      <Header user={user} />
       
       <div className="flex flex-1">
         <Sidebar 
