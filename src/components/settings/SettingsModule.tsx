@@ -65,7 +65,7 @@ export const SettingsModule = ({ user }: SettingsModuleProps) => {
             <GeneralSettings user={user} />
           </TabsContent>
           <TabsContent value="users">
-            <UsersRolesSettings user={user} />
+            <UsersRolesSettings />
           </TabsContent>
           <TabsContent value="receipt">
             <ReceiptSettings user={user} />
