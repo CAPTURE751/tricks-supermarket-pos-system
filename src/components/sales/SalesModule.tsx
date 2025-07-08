@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { User } from '@/hooks/useAuth';
 import { ProductGrid } from './ProductGrid';
@@ -12,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Search, ShoppingBag, Clock, BarChart2, RefreshCw } from 'lucide-react';
 import { useProducts } from '@/hooks/useProducts';
+import { useSales } from '@/hooks/useSales';
 import { DatabaseProduct } from '@/services/products-service';
 
 export interface Product {
@@ -53,15 +55,24 @@ const transformProduct = (dbProduct: DatabaseProduct): Product => ({
 });
 
 export const SalesModule = ({ user }: SalesModuleProps) => {
-  const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [activeTab, setActiveTab] = useState<string>('new-sale');
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [saleNote, setSaleNote] = useState<string>('');
   const [parkedSales, setParkedSales] = useState<{id: string, items: CartItem[], customer: Customer | null, note: string}[]>([]);
 
   const { products: dbProducts, categories, loading, error, refetchProducts, updateProductStock } = useProducts();
+  const { 
+    cart, 
+    selectedCustomer, 
+    addToCart, 
+    removeFromCart, 
+    updateQuantity, 
+    clearCart, 
+    setSelectedCustomer,
+    searchCustomers,
+    addCustomer
+  } = useSales();
 
   // Transform database products to UI format
   const products = dbProducts.map(transformProduct);
@@ -70,51 +81,54 @@ export const SalesModule = ({ user }: SalesModuleProps) => {
   const categoriesFromProducts = Array.from(new Set(products.map(p => p.category)));
   const allCategories = ['All', ...categoriesFromProducts];
 
-  const addToCart = (product: Product) => {
-    setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
-      if (existing) {
-        if (existing.quantity < product.stock) {
-          return prev.map(item =>
-            item.id === product.id
-              ? { ...item, quantity: item.quantity + 1 }
-              : item
-          );
-        }
-        return prev;
-      }
-      return [...prev, { ...product, quantity: 1 }];
+  const handleAddToCart = (product: Product) => {
+    addToCart({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      sku: product.sku || '',
+      stock_quantity: product.stock,
+      barcode: product.barcode,
+      category: product.category,
+      tax_rate: 0
     });
   };
 
   const updateCartItem = (id: string, quantity: number) => {
-    if (quantity <= 0) {
-      setCart(prev => prev.filter(item => item.id !== id));
-    } else {
-      setCart(prev =>
-        prev.map(item =>
-          item.id === id ? { ...item, quantity } : item
-        )
-      );
-    }
-  };
-
-  const clearCart = () => {
-    setCart([]);
-    setSelectedCustomer(null);
-    setSaleNote('');
+    updateQuantity(id, quantity);
   };
 
   const handleCustomerSelected = (customer: Customer) => {
-    setSelectedCustomer(customer);
+    setSelectedCustomer({
+      id: customer.id,
+      name: customer.name,
+      phone: customer.phone,
+      email: customer.email,
+      loyalty_points: customer.loyaltyPoints || 0
+    });
   };
 
   const parkCurrentSale = () => {
     if (cart.length > 0) {
       const newParkedSale = {
         id: `sale-${Date.now()}`,
-        items: [...cart],
-        customer: selectedCustomer,
+        items: cart.map(item => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          category: item.category || 'Uncategorized',
+          stock: item.stock_quantity,
+          barcode: item.barcode,
+          sku: item.sku,
+          quantity: item.quantity
+        })),
+        customer: selectedCustomer ? {
+          id: selectedCustomer.id,
+          name: selectedCustomer.name,
+          phone: selectedCustomer.phone || '',
+          email: selectedCustomer.email,
+          loyaltyPoints: selectedCustomer.loyalty_points
+        } : null,
         note: saleNote
       };
       setParkedSales([...parkedSales, newParkedSale]);
@@ -125,8 +139,14 @@ export const SalesModule = ({ user }: SalesModuleProps) => {
   const resumeParkedSale = (saleId: string) => {
     const sale = parkedSales.find(s => s.id === saleId);
     if (sale) {
-      setCart(sale.items);
-      setSelectedCustomer(sale.customer);
+      // Add items back to cart
+      sale.items.forEach(item => {
+        handleAddToCart(item);
+      });
+      
+      if (sale.customer) {
+        handleCustomerSelected(sale.customer);
+      }
       setSaleNote(sale.note);
       setParkedSales(parkedSales.filter(s => s.id !== saleId));
       setActiveTab('new-sale');
@@ -246,7 +266,7 @@ export const SalesModule = ({ user }: SalesModuleProps) => {
                 </CardContent>
               </Card>
 
-              <ProductGrid products={filteredProducts} onAddToCart={addToCart} />
+              <ProductGrid products={filteredProducts} onAddToCart={handleAddToCart} />
             </div>
 
             {/* Right Side - Cart and Checkout */}
@@ -263,9 +283,9 @@ export const SalesModule = ({ user }: SalesModuleProps) => {
                       <div>
                         <p className="font-semibold">{selectedCustomer.name}</p>
                         <p className="text-sm text-gray-400">{selectedCustomer.phone}</p>
-                        {selectedCustomer.loyaltyPoints !== undefined && (
+                        {selectedCustomer.loyalty_points !== undefined && (
                           <p className="text-sm text-green-400">
-                            Loyalty Points: {selectedCustomer.loyaltyPoints}
+                            Loyalty Points: {selectedCustomer.loyalty_points}
                           </p>
                         )}
                       </div>
@@ -279,7 +299,11 @@ export const SalesModule = ({ user }: SalesModuleProps) => {
                     </div>
                   </div>
                 ) : (
-                  <CustomerSearch onSelectCustomer={handleCustomerSelected} />
+                  <CustomerSearch 
+                    onSelectCustomer={handleCustomerSelected} 
+                    searchCustomers={searchCustomers}
+                    addCustomer={addCustomer}
+                  />
                 )}
               </Card>
 
@@ -307,15 +331,39 @@ export const SalesModule = ({ user }: SalesModuleProps) => {
               )}
 
               <ShoppingCart 
-                items={cart} 
+                items={cart.map(item => ({
+                  id: item.id,
+                  name: item.name,
+                  price: item.price,
+                  category: item.category || 'Uncategorized',
+                  stock: item.stock_quantity,
+                  barcode: item.barcode,
+                  sku: item.sku,
+                  quantity: item.quantity
+                }))} 
                 onUpdateItem={updateCartItem}
                 onClear={clearCart}
               />
               
               <CheckoutPanel 
-                items={cart}
+                items={cart.map(item => ({
+                  id: item.id,
+                  name: item.name,
+                  price: item.price,
+                  category: item.category || 'Uncategorized',
+                  stock: item.stock_quantity,
+                  barcode: item.barcode,
+                  sku: item.sku,
+                  quantity: item.quantity
+                }))}
                 user={user}
-                customer={selectedCustomer}
+                customer={selectedCustomer ? {
+                  id: selectedCustomer.id,
+                  name: selectedCustomer.name,
+                  phone: selectedCustomer.phone || '',
+                  email: selectedCustomer.email,
+                  loyaltyPoints: selectedCustomer.loyalty_points
+                } : null}
                 saleNote={saleNote}
                 onCheckoutComplete={handleCheckoutComplete}
               />
@@ -374,7 +422,6 @@ export const SalesModule = ({ user }: SalesModuleProps) => {
               <Card>
                 <CardContent className="p-4">
                   <h3 className="font-semibold mb-2">Daily Sales Summary</h3>
-                  {/* Placeholder for sales reports */}
                   <p className="text-gray-400">Report functionality will be implemented here</p>
                 </CardContent>
               </Card>
@@ -382,7 +429,6 @@ export const SalesModule = ({ user }: SalesModuleProps) => {
               <Card>
                 <CardContent className="p-4">
                   <h3 className="font-semibold mb-2">Top Selling Products</h3>
-                  {/* Placeholder for sales reports */}
                   <p className="text-gray-400">Report functionality will be implemented here</p>
                 </CardContent>
               </Card>

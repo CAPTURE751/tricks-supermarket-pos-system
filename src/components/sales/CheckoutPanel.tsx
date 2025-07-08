@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -68,7 +69,7 @@ export const CheckoutPanel = ({ items, user, customer, saleNote, onCheckoutCompl
     try {
       console.log('Completing sale with payment method:', paymentMethod);
 
-      // Complete the sale using the updated completeSale function
+      // Complete the sale using the completeSale function with single parameter
       await completeSale(paymentMethod);
 
       // Reset form and clear cart
