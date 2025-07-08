@@ -19,8 +19,8 @@ export const SaleHistory = ({ user }: SaleHistoryProps) => {
     const variants = {
       'cash': 'default',
       'card': 'secondary',
-      'mpesa': 'success',
-      'airtel': 'warning'
+      'mpesa': 'default',
+      'airtel': 'outline'
     } as const;
     
     return (
