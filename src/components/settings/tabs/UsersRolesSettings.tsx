@@ -1,369 +1,394 @@
 
-import { useEffect, useState } from 'react';
-import { User, useAuth } from '@/hooks/useAuth';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { toast } from "sonner";
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Users, Plus, Edit, Trash2, Shield, Key } from 'lucide-react';
+import { useAuth } from '@/components/auth/AdminOnlyAuthProvider';
 
-interface UsersRolesSettingsProps {
-  user: User;
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: 'Active' | 'Inactive';
+  lastLogin: string;
+  branch: string;
 }
 
-const permissions = [
-  { id: 'sales_view', label: 'View Sales', module: 'sales' },
-  { id: 'sales_create', label: 'Create Sales', module: 'sales' },
-  { id: 'sales_discount', label: 'Apply Discounts', module: 'sales' },
-  { id: 'sales_refund', label: 'Process Refunds', module: 'sales' },
-  { id: 'inventory_view', label: 'View Inventory', module: 'inventory' },
-  { id: 'inventory_edit', label: 'Edit Inventory', module: 'inventory' },
-  { id: 'reports_view', label: 'View Reports', module: 'reports' },
-  { id: 'customers_view', label: 'View Customers', module: 'customers' },
-  { id: 'customers_edit', label: 'Edit Customers', module: 'customers' },
-  { id: 'settings_view', label: 'View Settings', module: 'settings' },
-  { id: 'settings_edit', label: 'Edit Settings', module: 'settings' },
-  { id: 'users_manage', label: 'Manage Users', module: 'settings' },
+interface Role {
+  id: string;
+  name: string;
+  description: string;
+  permissions: string[];
+  userCount: number;
+}
+
+const mockUsers: User[] = [
+  {
+    id: '1',
+    name: 'John Doe',
+    email: 'john@example.com',
+    role: 'Admin',
+    status: 'Active',
+    lastLogin: '2024-01-20',
+    branch: 'Main Branch'
+  },
+  {
+    id: '2',
+    name: 'Jane Smith',
+    email: 'jane@example.com',
+    role: 'Cashier',
+    status: 'Active',
+    lastLogin: '2024-01-19',
+    branch: 'Branch 2'
+  }
 ];
 
-export const UsersRolesSettings = ({ user }: UsersRolesSettingsProps) => {
-  const { users, addUser, deleteUser } = useAuth();
-  const [showAddUser, setShowAddUser] = useState(false);
+const mockRoles: Role[] = [
+  {
+    id: '1',
+    name: 'Admin',
+    description: 'Full system access',
+    permissions: ['all'],
+    userCount: 1
+  },
+  {
+    id: '2',
+    name: 'Manager',
+    description: 'Branch management access',
+    permissions: ['sales', 'inventory', 'reports'],
+    userCount: 2
+  },
+  {
+    id: '3',
+    name: 'Cashier',
+    description: 'Point of sale access',
+    permissions: ['sales'],
+    userCount: 5
+  }
+];
+
+export const UsersRolesSettings = () => {
+  const { profile, canAccess } = useAuth();
+  const [selectedTab, setSelectedTab] = useState('users');
+  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [roles, setRoles] = useState<Role[]>(mockRoles);
+  const [showAddUserDialog, setShowAddUserDialog] = useState(false);
+  const [showAddRoleDialog, setShowAddRoleDialog] = useState(false);
+
   const [newUser, setNewUser] = useState({
     name: '',
-    role: 'Cashier' as User['role'],
-    branch: 'Main Branch',
-    pin: ''
+    email: '',
+    role: '',
+    branch: ''
   });
-  
-  const [selectedRole, setSelectedRole] = useState('Cashier');
-  const [rolePermissions, setRolePermissions] = useState<string[]>([]);
-  
-  useEffect(() => {
-    // In a real app, we would fetch role permissions from backend
-    // Here we're simulating predefined permissions
-    if (selectedRole === 'Cashier') {
-      setRolePermissions(['sales_view', 'sales_create', 'customers_view']);
-    } else if (selectedRole === 'Manager') {
-      setRolePermissions([
-        'sales_view', 'sales_create', 'sales_discount', 'sales_refund',
-        'inventory_view', 'customers_view', 'customers_edit', 'reports_view',
-        'settings_view'
-      ]);
-    } else if (selectedRole === 'Admin') {
-      setRolePermissions(permissions.map(p => p.id));
-    }
-  }, [selectedRole]);
+
+  const [newRole, setNewRole] = useState({
+    name: '',
+    description: '',
+    permissions: [] as string[]
+  });
+
+  if (!canAccess('admin')) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-center">
+            <Shield className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+            <p className="text-gray-400">Access denied. Admin privileges required.</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const handleAddUser = () => {
-    if (!newUser.name || !newUser.pin) {
-      toast.error("Name and PIN are required");
-      return;
-    }
+    if (!newUser.name || !newUser.email || !newUser.role) return;
     
-    const userToAdd: User = {
+    const user: User = {
       id: Date.now().toString(),
       name: newUser.name,
+      email: newUser.email,
       role: newUser.role,
-      branch: newUser.branch,
-      pin: newUser.pin
+      status: 'Active',
+      lastLogin: 'Never',
+      branch: newUser.branch || 'Main Branch'
     };
     
-    addUser(userToAdd);
-    setNewUser({ name: '', role: 'Cashier', branch: 'Main Branch', pin: '' });
-    setShowAddUser(false);
-    toast.success("User added successfully");
-  };
-  
-  const handlePermissionChange = (permissionId: string, checked: boolean) => {
-    if (checked) {
-      setRolePermissions(prev => [...prev, permissionId]);
-    } else {
-      setRolePermissions(prev => prev.filter(id => id !== permissionId));
-    }
-  };
-  
-  const handleSaveRolePermissions = () => {
-    // In a real app, this would save to backend
-    toast.success(`Permissions for ${selectedRole} role updated`);
+    setUsers([...users, user]);
+    setNewUser({ name: '', email: '', role: '', branch: '' });
+    setShowAddUserDialog(false);
   };
 
-  const handleSaveSessionSettings = () => {
-    toast.success("Session settings saved successfully");
+  const handleAddRole = () => {
+    if (!newRole.name || !newRole.description) return;
+    
+    const role: Role = {
+      id: Date.now().toString(),
+      name: newRole.name,
+      description: newRole.description,
+      permissions: newRole.permissions,
+      userCount: 0
+    };
+    
+    setRoles([...roles, role]);
+    setNewRole({ name: '', description: '', permissions: [] });
+    setShowAddRoleDialog(false);
   };
+
+  const togglePermission = (permission: string) => {
+    setNewRole(prev => ({
+      ...prev,
+      permissions: prev.permissions.includes(permission)
+        ? prev.permissions.filter(p => p !== permission)
+        : [...prev.permissions, permission]
+    }));
+  };
+
+  const availablePermissions = ['sales', 'inventory', 'purchases', 'reports', 'customers', 'cash', 'admin', 'settings'];
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="users" className="w-full">
-        <TabsList className="bg-gray-700 border border-gray-600">
-          <TabsTrigger value="users">User Management</TabsTrigger>
-          <TabsTrigger value="roles">Roles & Permissions</TabsTrigger>
-          <TabsTrigger value="sessions">Login & Sessions</TabsTrigger>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Users & Roles</h2>
+          <p className="text-gray-400">Manage user accounts and role permissions</p>
+        </div>
+      </div>
+
+      <Tabs value={selectedTab} onValueChange={setSelectedTab}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="users" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Users
+          </TabsTrigger>
+          <TabsTrigger value="roles" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Roles
+          </TabsTrigger>
         </TabsList>
-        
-        <TabsContent value="users" className="pt-4">
-          <Card className="bg-gray-800 border-gray-700">
+
+        <TabsContent value="users" className="space-y-4">
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-white">Users</CardTitle>
-              <Button 
-                onClick={() => setShowAddUser(true)} 
-                className="bg-green-500 hover:bg-green-600"
-              >
-                Add User
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4 max-h-[500px] overflow-y-auto">
-                {users.map(u => (
-                  <div key={u.id} className="bg-gray-700 p-4 rounded-lg flex justify-between items-center">
-                    <div>
-                      <h3 className="text-white font-semibold">{u.name}</h3>
-                      <p className="text-gray-300 text-sm">{u.role} • {u.branch}</p>
-                      {u.lastActive && (
-                        <p className="text-gray-400 text-xs">
-                          Last active: {new Date(u.lastActive).toLocaleString()}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button 
-                        variant="outline" 
-                        className="border-gray-600 hover:bg-gray-600 text-white"
-                      >
-                        Edit
-                      </Button>
-                      {u.id !== user.id && (
-                        <Button 
-                          onClick={() => {
-                            deleteUser(u.id);
-                            toast.success("User deleted");
-                          }}
-                          variant="destructive"
-                        >
-                          Delete
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-          
-          {/* Add User Modal */}
-          {showAddUser && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-gray-800 p-6 rounded-lg w-96">
-                <h3 className="text-white text-xl font-bold mb-4">Add New User</h3>
-                
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="userName" className="text-gray-200">Name</Label>
-                    <Input
-                      id="userName"
-                      value={newUser.name}
-                      onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                      className="bg-gray-700 border-gray-600 text-white"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="userRole" className="text-gray-200">Role</Label>
-                    <Select 
-                      value={newUser.role} 
-                      onValueChange={(value) => setNewUser({ ...newUser, role: value as User['role'] })}
-                    >
-                      <SelectTrigger id="userRole" className="bg-gray-700 border-gray-600 text-white">
-                        <SelectValue placeholder="Select role" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-gray-700 border-gray-600">
-                        <SelectItem value="Cashier">Cashier</SelectItem>
-                        <SelectItem value="Manager">Manager</SelectItem>
-                        <SelectItem value="Accountant">Accountant</SelectItem>
-                        <SelectItem value="Stock Controller">Stock Controller</SelectItem>
-                        <SelectItem value="Guest">Guest</SelectItem>
-                        <SelectItem value="Admin">Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="userBranch" className="text-gray-200">Branch</Label>
-                    <Input
-                      id="userBranch"
-                      value={newUser.branch}
-                      onChange={(e) => setNewUser({ ...newUser, branch: e.target.value })}
-                      className="bg-gray-700 border-gray-600 text-white"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="userPin" className="text-gray-200">PIN (4 digits)</Label>
-                    <Input
-                      id="userPin"
-                      type="password"
-                      value={newUser.pin}
-                      onChange={(e) => setNewUser({ ...newUser, pin: e.target.value })}
-                      className="bg-gray-700 border-gray-600 text-white"
-                      maxLength={4}
-                    />
-                  </div>
-                </div>
-                
-                <div className="flex space-x-4 mt-6">
-                  <Button
-                    onClick={handleAddUser}
-                    className="flex-1 bg-green-500 hover:bg-green-600"
-                  >
+              <CardTitle>User Management</CardTitle>
+              <Dialog open={showAddUserDialog} onOpenChange={setShowAddUserDialog}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
                     Add User
                   </Button>
-                  <Button
-                    onClick={() => setShowAddUser(false)}
-                    className="flex-1"
-                    variant="outline"
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="roles" className="pt-4">
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white">Roles & Permissions</CardTitle>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New User</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Full Name</Label>
+                      <Input
+                        id="name"
+                        value={newUser.name}
+                        onChange={(e) => setNewUser(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="Enter full name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={newUser.email}
+                        onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
+                        placeholder="Enter email address"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="role">Role</Label>
+                      <Select value={newUser.role} onValueChange={(value) => setNewUser(prev => ({ ...prev, role: value }))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {roles.map(role => (
+                            <SelectItem key={role.id} value={role.name}>
+                              {role.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="branch">Branch</Label>
+                      <Input
+                        id="branch"
+                        value={newUser.branch}
+                        onChange={(e) => setNewUser(prev => ({ ...prev, branch: e.target.value }))}
+                        placeholder="Enter branch name"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={handleAddUser} className="flex-1">
+                        Add User
+                      </Button>
+                      <Button variant="outline" onClick={() => setShowAddUserDialog(false)} className="flex-1">
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex space-x-4 items-center">
-                  <Label htmlFor="roleSelect" className="text-gray-200 w-24">Select Role:</Label>
-                  <Select 
-                    value={selectedRole} 
-                    onValueChange={setSelectedRole}
-                  >
-                    <SelectTrigger id="roleSelect" className="bg-gray-700 border-gray-600 text-white">
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-700 border-gray-600">
-                      <SelectItem value="Cashier">Cashier</SelectItem>
-                      <SelectItem value="Manager">Manager</SelectItem>
-                      <SelectItem value="Accountant">Accountant</SelectItem>
-                      <SelectItem value="Stock Controller">Stock Controller</SelectItem>
-                      <SelectItem value="Guest">Guest</SelectItem>
-                      <SelectItem value="Admin">Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="bg-gray-700 p-4 rounded-lg">
-                  <h3 className="text-white font-semibold mb-4">Permissions for {selectedRole}</h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {permissions.map(permission => (
-                      <div key={permission.id} className="flex items-center space-x-2">
-                        <Checkbox 
-                          id={permission.id}
-                          checked={rolePermissions.includes(permission.id)}
-                          onCheckedChange={(checked) => 
-                            handlePermissionChange(permission.id, checked as boolean)
-                          }
-                        />
-                        <Label htmlFor={permission.id} className="text-gray-200">
-                          {permission.label}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <div className="mt-6">
-                    <Button 
-                      onClick={handleSaveRolePermissions}
-                      className="bg-green-500 hover:bg-green-600"
-                    >
-                      Save Permissions
-                    </Button>
-                  </div>
-                </div>
-              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Last Login</TableHead>
+                    <TableHead>Branch</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">{user.name}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{user.role}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={user.status === 'Active' ? 'default' : 'secondary'}>
+                          {user.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{user.lastLogin}</TableCell>
+                      <TableCell>{user.branch}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button variant="ghost" size="sm">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </TabsContent>
-        
-        <TabsContent value="sessions" className="pt-4">
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white">Login & Session Settings</CardTitle>
+
+        <TabsContent value="roles" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Role Management</CardTitle>
+              <Dialog open={showAddRoleDialog} onOpenChange={setShowAddRoleDialog}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Role
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Role</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="roleName">Role Name</Label>
+                      <Input
+                        id="roleName"
+                        value={newRole.name}
+                        onChange={(e) => setNewRole(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="Enter role name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="roleDescription">Description</Label>
+                      <Input
+                        id="roleDescription"
+                        value={newRole.description}
+                        onChange={(e) => setNewRole(prev => ({ ...prev, description: e.target.value }))}
+                        placeholder="Enter role description"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Permissions</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {availablePermissions.map(permission => (
+                          <div key={permission} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id={permission}
+                              checked={newRole.permissions.includes(permission)}
+                              onChange={() => togglePermission(permission)}
+                              className="rounded"
+                            />
+                            <Label htmlFor={permission} className="text-sm capitalize">
+                              {permission}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={handleAddRole} className="flex-1">
+                        Add Role
+                      </Button>
+                      <Button variant="outline" onClick={() => setShowAddRoleDialog(false)} className="flex-1">
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="sessionTimeout" className="text-gray-200">Session Timeout (minutes)</Label>
-                    <Input 
-                      id="sessionTimeout" 
-                      type="number" 
-                      defaultValue="30"
-                      className="bg-gray-700 border-gray-600 text-white" 
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="maxLoginAttempts" className="text-gray-200">Max Login Attempts</Label>
-                    <Input 
-                      id="maxLoginAttempts" 
-                      type="number" 
-                      defaultValue="3"
-                      className="bg-gray-700 border-gray-600 text-white" 
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-3">
-                  <h3 className="text-white font-semibold">Login Methods</h3>
-                  
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="loginPin" defaultChecked />
-                    <Label htmlFor="loginPin" className="text-gray-200">PIN Login</Label>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="loginPassword" />
-                    <Label htmlFor="loginPassword" className="text-gray-200">Username/Password</Label>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="loginFingerprint" />
-                    <Label htmlFor="loginFingerprint" className="text-gray-200">Fingerprint (if supported by device)</Label>
-                  </div>
-                </div>
-                
-                <div className="space-y-3">
-                  <h3 className="text-white font-semibold">Password Reset</h3>
-                  
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="resetAdmin" defaultChecked />
-                    <Label htmlFor="resetAdmin" className="text-gray-200">Require admin approval</Label>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="resetSecurityQuestion" />
-                    <Label htmlFor="resetSecurityQuestion" className="text-gray-200">Enable security question recovery</Label>
-                  </div>
-                </div>
-                
-                <div className="pt-4">
-                  <Button 
-                    onClick={handleSaveSessionSettings}
-                    className="bg-green-500 hover:bg-green-600"
-                  >
-                    Save Session Settings
-                  </Button>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {roles.map((role) => (
+                  <Card key={role.id}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-semibold">{role.name}</h3>
+                        <Badge variant="outline">{role.userCount} users</Badge>
+                      </div>
+                      <p className="text-sm text-gray-400 mb-3">{role.description}</p>
+                      <div className="space-y-2">
+                        <Label className="text-xs font-medium">Permissions:</Label>
+                        <div className="flex flex-wrap gap-1">
+                          {role.permissions.map(permission => (
+                            <Badge key={permission} variant="secondary" className="text-xs">
+                              {permission}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex gap-2 mt-4">
+                        <Button variant="ghost" size="sm" className="flex-1">
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button variant="ghost" size="sm">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             </CardContent>
           </Card>
